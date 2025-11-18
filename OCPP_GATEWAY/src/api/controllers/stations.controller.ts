@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Param, Body, Res } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { StationsService } from '../../charging/stations/stations.service';
 import { OcppService } from '../../ocpp/ocpp.service';
@@ -94,6 +94,33 @@ export class StationsController {
       return res.json(serializedResult);
     } catch (error: any) {
       console.error('Error updating station:', error);
+      if (error.code === 'P2025') {
+        // Record not found
+        return res.status(404).json({ error: 'Station not found' });
+      }
+      return res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+  }
+
+  @Delete(':cpId')
+  async delete(@Param('cpId') cpId: string, @Res() res: Response) {
+    try {
+      // First check if the station exists
+      const existingStation = await this.stationsService.findByOcppIdentifier(cpId);
+      if (!existingStation) {
+        return res.status(404).json({ error: 'Station not found' });
+      }
+      
+      // Check if the station is currently connected
+      if (this.ocppService.isStationConnected(cpId)) {
+        return res.status(400).json({ error: 'Cannot delete connected station' });
+      }
+      
+      // Delete the station
+      await this.stationsService.deleteStation(cpId);
+      return res.status(204).send();
+    } catch (error: any) {
+      console.error('Error deleting station:', error);
       if (error.code === 'P2025') {
         // Record not found
         return res.status(404).json({ error: 'Station not found' });

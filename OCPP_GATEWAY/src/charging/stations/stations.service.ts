@@ -40,7 +40,7 @@ export class StationsService {
         model: data.model,
         serialNumber: data.serialNumber,
         firmwareVersion: data.firmwareVersion,
-        status: ChargePointStatus.ONLINE,
+        status: ChargePointStatus.MAINTENANCE, // Set new stations to maintenance by default
         lastHeartbeatAt: new Date(),
       },
     });
@@ -56,6 +56,14 @@ export class StationsService {
   }
 
   async updateStation(ocppIdentifier: string, data: UpdateStationDto) {
+    // Validate status if provided
+    if (data.status) {
+      const allowedStatuses = [ChargePointStatus.MAINTENANCE, ChargePointStatus.ERROR];
+      if (!allowedStatuses.includes(data.status as ChargePointStatus)) {
+        throw new Error(`Invalid status. Stations can only be set to MAINTENANCE or ERROR status.`);
+      }
+    }
+
     return this.prisma.chargingStation.update({
       where: { ocppIdentifier },
       data,
@@ -63,6 +71,18 @@ export class StationsService {
   }
 
   async updateHeartbeat(ocppIdentifier: string) {
+    // Check current status - only update if not in maintenance or error mode
+    const station = await this.findByOcppIdentifier(ocppIdentifier);
+    if (station && (station.status === ChargePointStatus.MAINTENANCE || station.status === ChargePointStatus.ERROR)) {
+      // Don't change status for stations in maintenance or error mode
+      return this.prisma.chargingStation.update({
+        where: { ocppIdentifier },
+        data: {
+          lastHeartbeatAt: new Date(),
+        },
+      });
+    }
+
     return this.prisma.chargingStation.update({
       where: { ocppIdentifier },
       data: {
@@ -73,6 +93,13 @@ export class StationsService {
   }
 
   async markOffline(ocppIdentifier: string) {
+    // Check current status - only update if not in maintenance or error mode
+    const station = await this.findByOcppIdentifier(ocppIdentifier);
+    if (station && (station.status === ChargePointStatus.MAINTENANCE || station.status === ChargePointStatus.ERROR)) {
+      // Don't change status for stations in maintenance or error mode
+      return station;
+    }
+
     return this.prisma.chargingStation.update({
       where: { ocppIdentifier },
       data: {
@@ -86,6 +113,50 @@ export class StationsService {
       include: {
         connectors: true,
       },
+    });
+  }
+
+  async deleteStation(ocppIdentifier: string) {
+    // First, find the station to get its ID
+    const station = await this.prisma.chargingStation.findUnique({
+      where: { ocppIdentifier },
+    });
+
+    if (!station) {
+      throw new Error('Station not found');
+    }
+
+    // Delete related records first due to foreign key constraints
+    // Delete reservations
+    await this.prisma.reservation.deleteMany({
+      where: { chargingStationId: station.id },
+    });
+
+    // Delete meter values through charging sessions
+    const sessions = await this.prisma.chargingSession.findMany({
+      where: { chargingStationId: station.id },
+    });
+
+    if (sessions.length > 0) {
+      const sessionIds = sessions.map(session => session.id);
+      await this.prisma.meterValue.deleteMany({
+        where: { chargingSessionId: { in: sessionIds } },
+      });
+    }
+
+    // Delete charging sessions
+    await this.prisma.chargingSession.deleteMany({
+      where: { chargingStationId: station.id },
+    });
+
+    // Delete connectors
+    await this.prisma.connector.deleteMany({
+      where: { chargingStationId: station.id },
+    });
+
+    // Finally, delete the station itself
+    return this.prisma.chargingStation.delete({
+      where: { ocppIdentifier },
     });
   }
 }

@@ -60,8 +60,8 @@ export default function StationList() {
       setModalVisible(false)
       form.resetFields()
       fetchStations()
-    } catch (error) {
-      message.error(editingStation ? 'Failed to update station' : 'Failed to create station')
+    } catch (error: any) {
+      message.error(error.message || 'Failed to save station')
     }
   }
 
@@ -70,6 +70,7 @@ export default function StationList() {
       case 'ONLINE': return 'green'
       case 'OFFLINE': return 'red'
       case 'ERROR': return 'orange'
+      case 'MAINTENANCE': return 'blue'
       default: return 'default'
     }
   }
@@ -187,10 +188,8 @@ export default function StationList() {
           
           <Form.Item name="status" label="Status">
             <Select>
-              <Select.Option value="ONLINE">Online</Select.Option>
-              <Select.Option value="OFFLINE">Offline</Select.Option>
-              <Select.Option value="ERROR">Error</Select.Option>
               <Select.Option value="MAINTENANCE">Maintenance</Select.Option>
+              <Select.Option value="ERROR">Error</Select.Option>
             </Select>
           </Form.Item>
         </Form>

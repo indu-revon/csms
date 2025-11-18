@@ -4,4 +4,6 @@ export enum ChargePointStatus {
   AVAILABLE = 'AVAILABLE',
   UNAVAILABLE = 'UNAVAILABLE',
   FAULTED = 'FAULTED',
+  MAINTENANCE = 'MAINTENANCE',
+  ERROR = 'ERROR',
 }
