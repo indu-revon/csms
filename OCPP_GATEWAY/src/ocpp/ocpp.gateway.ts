@@ -8,6 +8,7 @@ import { Server, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
 import { OcppService } from './ocpp.service';
 import { createLogger } from '../config/logger.config';
+import { StationsService } from '../charging/stations/stations.service';
 
 @WebSocketGateway()
 export class OcppGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -16,7 +17,10 @@ export class OcppGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = createLogger('OcppGateway');
 
-  constructor(private readonly ocppService: OcppService) {}
+  constructor(
+    private readonly ocppService: OcppService,
+    private readonly stationsService: StationsService,
+  ) {}
 
   async handleConnection(client: WebSocket, req: IncomingMessage) {
     const cpId = this.extractCpId(req.url);
@@ -25,6 +29,14 @@ export class OcppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!cpId) {
       this.logger.warn('Connection rejected: No CP ID in URL');
       client.close(1008, 'Invalid CP ID');
+      return;
+    }
+
+    // Check if the station is registered in the system
+    const existingStation = await this.stationsService.findByOcppIdentifier(cpId);
+    if (!existingStation) {
+      this.logger.warn(`Connection rejected: Station ${cpId} not registered in the system`);
+      client.close(1008, 'Station not registered');
       return;
     }
 

@@ -11,7 +11,20 @@ export class BootNotificationHandler {
   }
 
   async handle(cpId: string, payload: BootNotificationRequest): Promise<BootNotificationResponse> {
-    // Create or update station record
+    // Check if the station is already registered in the system
+    const existingStation = await this.stationsService.findByOcppIdentifier(cpId);
+    
+    if (!existingStation) {
+      // Station is not registered, reject the connection
+      const now = new Date().toISOString();
+      return {
+        status: 'Rejected',
+        currentTime: now,
+        interval: this.heartbeatInterval,
+      };
+    }
+
+    // Station is registered, proceed with normal boot notification handling
     await this.stationsService.upsertStation({
       ocppIdentifier: cpId,
       vendor: payload.chargePointVendor,
