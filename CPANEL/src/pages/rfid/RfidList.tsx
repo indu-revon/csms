@@ -43,9 +43,9 @@ export default function RfidList() {
     setModalVisible(true)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (tagId: string) => {
     try {
-      await rfidService.delete(id.toString())
+      await rfidService.delete(tagId)
       message.success('RFID card deleted successfully')
       fetchRfidCards()
     } catch (error) {
@@ -155,7 +155,7 @@ export default function RfidList() {
           />
           <Button 
             icon={<DeleteOutlined />} 
-            onClick={() => handleDelete(record.id)}
+            onClick={() => handleDelete(record.tagId)}
             size="small"
             danger
           />

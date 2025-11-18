@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Table, Button, Modal, Form, Input, Select, message, Tag, Space, DatePicker } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { reservationService, type Reservation } from '@/services/api'
+import { reservationService, stationService, type Reservation, type Station } from '@/services/api'
 import dayjs from 'dayjs'
 
 export default function ReservationList() {
   const [reservations, setReservations] = useState<Reservation[]>([])
+  const [stations, setStations] = useState<Station[]>([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null)
@@ -23,13 +24,31 @@ export default function ReservationList() {
     }
   }
 
+  const fetchStations = async () => {
+    try {
+      const data = await stationService.getAll()
+      setStations(data)
+    } catch (error) {
+      message.error('Failed to fetch charging stations')
+    }
+  }
+
   useEffect(() => {
     fetchReservations()
+    fetchStations()
   }, [])
 
   const handleCreate = () => {
     setEditingReservation(null)
-    form.resetFields()
+    // Explicitly set all form fields to empty/initial values
+    form.setFieldsValue({
+      chargingStationId: undefined,
+      connectorId: undefined,
+      ocppReservationId: undefined,
+      ocppIdTag: undefined,
+      expiryDatetime: undefined,
+      status: 'Active'
+    })
     setModalVisible(true)
   }
 
@@ -54,11 +73,19 @@ export default function ReservationList() {
 
   const handleSubmit = async (values: any) => {
     try {
-      // Convert dayjs objects to ISO strings
+      // Log the values being sent for debugging
+      console.log('Submitting reservation data:', values);
+      
+      // Convert string values to proper data types
       const formattedValues = {
         ...values,
+        chargingStationId: values.chargingStationId ? parseInt(values.chargingStationId, 10) : undefined,
+        connectorId: values.connectorId !== undefined && values.connectorId !== '' ? parseInt(values.connectorId, 10) : null,
+        ocppReservationId: values.ocppReservationId ? parseInt(values.ocppReservationId, 10) : undefined,
         expiryDatetime: values.expiryDatetime ? values.expiryDatetime.toISOString() : undefined,
       }
+      
+      console.log('Formatted reservation data:', formattedValues);
       
       if (editingReservation) {
         await reservationService.update(editingReservation.id, formattedValues)
@@ -68,10 +95,35 @@ export default function ReservationList() {
         message.success('Reservation created successfully')
       }
       setModalVisible(false)
-      form.resetFields()
+      // Explicitly reset all form fields
+      form.setFieldsValue({
+        chargingStationId: undefined,
+        connectorId: undefined,
+        ocppReservationId: undefined,
+        ocppIdTag: undefined,
+        expiryDatetime: undefined,
+        status: 'Active'
+      })
       fetchReservations()
-    } catch (error) {
-      message.error(editingReservation ? 'Failed to update reservation' : 'Failed to create reservation')
+    } catch (error: any) {
+      // Log the error for debugging
+      console.error('Error creating reservation:', error);
+      
+      // Handle specific error messages from the backend
+      let errorMessage = '';
+      
+      // Check various possible error response structures
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = editingReservation ? 'Failed to update reservation' : 'Failed to create reservation';
+      }
+      
+      message.error(errorMessage);
     }
   }
 
@@ -172,18 +224,43 @@ export default function ReservationList() {
         open={modalVisible}
         onCancel={() => {
           setModalVisible(false)
-          form.resetFields()
+          // Explicitly reset all form fields when canceling
+          form.setFieldsValue({
+            chargingStationId: undefined,
+            connectorId: undefined,
+            ocppReservationId: undefined,
+            ocppIdTag: undefined,
+            expiryDatetime: undefined,
+            status: 'Active'
+          })
         }}
         onOk={() => form.submit()}
         width={600}
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={handleSubmit}
+          initialValues={{
+            status: 'Active'
+          }}
+        >
           <Form.Item 
             name="chargingStationId" 
-            label="Charging Station ID" 
-            rules={[{ required: true, message: 'Please input charging station ID!' }]}
+            label="Charging Station" 
+            rules={[{ required: true, message: 'Please select a charging station!' }]}
           >
-            <Input type="number" />
+            <Select 
+              showSearch
+              placeholder="Select a charging station"
+              optionFilterProp="label"
+            >
+              {stations.map(station => (
+                <Select.Option key={station.id} value={station.id} label={station.ocppIdentifier}>
+                  {station.ocppIdentifier} (ID: {station.id})
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
           
           <Form.Item name="connectorId" label="Connector ID">

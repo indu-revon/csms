@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
 import { RfidService, CreateRfidCardDto } from '../../charging/rfid/rfid.service';
 
 @Controller('api/rfid')
@@ -39,5 +39,10 @@ export class RfidController {
   @Post(':tagId/activate')
   async activateCard(@Param('tagId') tagId: string) {
     return this.rfidService.updateCardStatus(tagId, 'Active');
+  }
+
+  @Delete(':tagId')
+  async deleteCard(@Param('tagId') tagId: string) {
+    return this.rfidService.deleteCard(tagId);
   }
 }

@@ -5,6 +5,7 @@ import { StationsController } from './controllers/stations.controller';
 import { SessionsController } from './controllers/sessions.controller';
 import { RfidController } from './controllers/rfid.controller';
 import { AdminController } from './controllers/admin.controller';
+import { ReservationsController } from './controllers/reservations.controller';
 
 @Module({
   imports: [ChargingModule, OcppModule],
@@ -13,6 +14,7 @@ import { AdminController } from './controllers/admin.controller';
     SessionsController,
     RfidController,
     AdminController,
+    ReservationsController,
   ],
 })
 export class ApiModule {}

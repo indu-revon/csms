@@ -78,6 +78,12 @@ export class RfidService {
     });
   }
 
+  async deleteCard(tagId: string) {
+    return this.prisma.rfidCard.delete({
+      where: { tagId },
+    });
+  }
+
   async findAll() {
     return this.prisma.rfidCard.findMany();
   }
