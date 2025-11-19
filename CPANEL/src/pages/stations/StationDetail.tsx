@@ -154,7 +154,7 @@ export default function StationDetail() {
 
   return (
     <div>
-      <h1>Station Details</h1>
+      <h1>Charging Station Details</h1>
       
       <Tabs defaultActiveKey="1">
         <TabPane tab="Charging Station Info" key="1">

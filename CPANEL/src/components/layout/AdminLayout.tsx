@@ -36,7 +36,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     {
       key: '/stations',
       icon: <ThunderboltOutlined />,
-      label: 'Stations',
+      label: 'Charging Stations',
     },
     {
       key: '/sessions',

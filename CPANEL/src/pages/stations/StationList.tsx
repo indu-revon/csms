@@ -171,7 +171,7 @@ export default function StationList() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h1>Stations</h1>
+        <h1>Charging Stations</h1>
         <Button 
           type="primary" 
           icon={<PlusOutlined />} 
