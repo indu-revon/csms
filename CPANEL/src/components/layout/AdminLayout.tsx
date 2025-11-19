@@ -8,6 +8,15 @@ import {
   ControlOutlined,
   UserOutlined,
   LogoutOutlined,
+  TeamOutlined,
+  EnvironmentOutlined,
+  CarOutlined,
+  ClockCircleOutlined,
+  FileTextOutlined,
+  DatabaseOutlined,
+  WifiOutlined,
+  ConsoleSqlOutlined,
+  QrcodeOutlined
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
@@ -29,39 +38,129 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const menuItems: MenuProps['items'] = [
     {
-      key: '/',
-      icon: <DashboardOutlined />,
-      label: 'Dashboard',
+      key: 'live',
+      label: 'Live',
+      type: 'group',
+      children: [
+        {
+          key: '/',
+          icon: <DashboardOutlined />,
+          label: 'Dashboard',
+        },
+        {
+          key: '/sessions',
+          icon: <HistoryOutlined />,
+          label: 'Live Sessions',
+        },
+      ],
     },
     {
-      key: '/stations',
-      icon: <ThunderboltOutlined />,
-      label: 'Charging Stations',
+      key: 'management',
+      label: 'Management',
+      type: 'group',
+      children: [
+        {
+          key: '/partners',
+          icon: <TeamOutlined />,
+          label: 'Partners',
+        },
+        {
+          key: '/locations',
+          icon: <EnvironmentOutlined />,
+          label: 'Locations',
+        },
+        {
+          key: '/users',
+          icon: <UserOutlined />,
+          label: 'Users',
+        },
+      ],
     },
     {
-      key: '/sessions',
-      icon: <HistoryOutlined />,
-      label: 'Sessions',
+      key: 'network',
+      label: 'Network',
+      type: 'group',
+      children: [
+        {
+          key: '/ev-drivers',
+          icon: <CarOutlined />,
+          label: 'EV Drivers',
+        },
+        {
+          key: '/transactions',
+          icon: <HistoryOutlined />,
+          label: 'Transactions',
+        },
+        {
+          key: '/schedules',
+          icon: <ClockCircleOutlined />,
+          label: 'Schedules',
+        },
+        {
+          key: '/reservations',
+          icon: <CalendarOutlined />,
+          label: 'Reservations',
+        },
+      ],
     },
     {
-      key: '/rfid',
-      icon: <IdcardOutlined />,
-      label: 'RFID Cards',
+      key: 'chargers',
+      label: 'Chargers',
+      type: 'group',
+      children: [
+        {
+          key: '/stations',
+          icon: <ThunderboltOutlined />,
+          label: 'Charging Stations',
+        },
+        {
+          key: '/downtime',
+          icon: <ClockCircleOutlined />,
+          label: 'Downtime',
+        },
+        {
+          key: '/maps',
+          icon: <EnvironmentOutlined />,
+          label: 'Maps',
+        },
+        {
+          key: '/charging-sessions',
+          icon: <HistoryOutlined />,
+          label: 'Sessions',
+        },
+        {
+          key: '/tariffs',
+          icon: <FileTextOutlined />,
+          label: 'Tariffs',
+        },
+      ],
     },
     {
-      key: '/reservations',
-      icon: <CalendarOutlined />,
-      label: 'Reservations',
-    },
-    {
-      key: '/operations',
-      icon: <ControlOutlined />,
-      label: 'Operations',
-    },
-    {
-      key: '/users',
-      icon: <UserOutlined />,
-      label: 'Users',
+      key: 'tools',
+      label: 'Tools and Utilities',
+      type: 'group',
+      children: [
+        {
+          key: '/static-data',
+          icon: <DatabaseOutlined />,
+          label: 'Static Data',
+        },
+        {
+          key: '/connections',
+          icon: <WifiOutlined />,
+          label: 'Connections',
+        },
+        {
+          key: '/server-logs',
+          icon: <ConsoleSqlOutlined />,
+          label: 'Server Logs',
+        },
+        {
+          key: '/qr-generator',
+          icon: <QrcodeOutlined />,
+          label: 'QR Generator',
+        },
+      ],
     },
   ]
 
