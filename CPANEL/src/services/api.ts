@@ -12,6 +12,11 @@ export interface Station {
   createdAt: string
   updatedAt: string
   connectors?: Connector[]
+  // Hardware info
+  powerOutputKw?: number
+  maxCurrentAmp?: number
+  maxVoltageV?: number
+  modelId?: number
 }
 
 export interface Connector {
@@ -66,75 +71,173 @@ export interface User {
   id: number
   email: string
   name: string
-  role: 'SUPER_ADMIN' | 'OPERATOR' | 'VIEWER'
+  role: string
   createdAt: string
   updatedAt: string
 }
 
-// Station API
-export const stationService = {
-  getAll: () => apiClient.get<Station[]>('/stations'),
-  getById: (id: number) => apiClient.get<Station>(`/stations/${id}`),
-  getConnected: () => apiClient.get<Station[]>('/stations/connected/list'),
-  // Add CRUD operations
-  create: (data: Partial<Station>) => apiClient.post<Station>('/stations', data),
-  update: (ocppIdentifier: string, data: Partial<Station>) => apiClient.put<Station>(`/stations/${ocppIdentifier}`, data),
-  delete: (id: number) => apiClient.delete(`/stations/${id}`),
+export interface AuditLog {
+  id: number
+  userId?: number
+  actionType: string
+  targetType: string
+  targetId?: number
+  timestamp: string
+  metadata?: string
+  status?: string
+  request?: string
+  response?: string
 }
 
-// Session API
-export const sessionService = {
-  getAll: (params?: { from?: string; to?: string; stationId?: number }) =>
-    apiClient.get<Session[]>('/sessions', { params }),
-  getById: (id: number) => apiClient.get<Session>(`/sessions/${id}`),
-  getByStation: (stationId: string) =>
-    apiClient.get<Session[]>(`/sessions/station/${stationId}`),
-  // Add CRUD operations
-  create: (data: Partial<Session>) => apiClient.post<Session>('/sessions', data),
-  update: (id: number, data: Partial<Session>) => apiClient.put<Session>(`/sessions/${id}`, data),
-  delete: (id: number) => apiClient.delete(`/sessions/${id}`),
+class StationService {
+  private readonly baseUrl = '/stations'
+
+  async getAll(): Promise<Station[]> {
+    return await apiClient.get<Station[]>(this.baseUrl)
+  }
+
+  async getById(id: string): Promise<Station> {
+    return await apiClient.get<Station>(`${this.baseUrl}/${id}`)
+  }
+
+  async create(data: Partial<Station>): Promise<Station> {
+    return await apiClient.post<Station>(this.baseUrl, data)
+  }
+
+  async update(id: string, data: Partial<Station>): Promise<Station> {
+    return await apiClient.put<Station>(`${this.baseUrl}/${id}`, data)
+  }
+
+  async delete(ocppIdentifier: string): Promise<void> {
+    await apiClient.delete(`${this.baseUrl}/${ocppIdentifier}`)
+  }
 }
 
-// RFID API
-export const rfidService = {
-  getAll: () => apiClient.get<RfidCard[]>('/rfid'),
-  getById: (tagId: string) => apiClient.get<RfidCard>(`/rfid/${tagId}`),
-  create: (data: Partial<RfidCard>) => apiClient.post<RfidCard>('/rfid', data),
-  block: (tagId: string) => apiClient.post(`/rfid/${tagId}/block`),
-  activate: (tagId: string) => apiClient.post(`/rfid/${tagId}/activate`),
-  // Add CRUD operations
-  update: (tagId: string, data: Partial<RfidCard>) => apiClient.put<RfidCard>(`/rfid/${tagId}`, data),
-  delete: (tagId: string) => apiClient.delete(`/rfid/${tagId}`),
+class SessionService {
+  private readonly baseUrl = '/sessions'
+
+  async getAll(limit?: number): Promise<Session[]> {
+    const url = limit ? `${this.baseUrl}?limit=${limit}` : this.baseUrl
+    return await apiClient.get<Session[]>(url)
+  }
+
+  async getByStation(cpId: string): Promise<Session[]> {
+    return await apiClient.get<Session[]>(`${this.baseUrl}/station/${cpId}`)
+  }
 }
 
-// Reservation API
-export const reservationService = {
-  getAll: () => apiClient.get<Reservation[]>('/reservations'),
-  getById: (id: number) => apiClient.get<Reservation>(`/reservations/${id}`),
-  create: (data: Partial<Reservation>) => apiClient.post<Reservation>('/reservations', data),
-  update: (id: number, data: Partial<Reservation>) => apiClient.put<Reservation>(`/reservations/${id}`, data),
-  delete: (id: number) => apiClient.delete(`/reservations/${id}`),
+class RfidService {
+  private readonly baseUrl = '/rfid'
+
+  async getAll(): Promise<RfidCard[]> {
+    return await apiClient.get<RfidCard[]>(this.baseUrl)
+  }
+
+  async getById(tagId: string): Promise<RfidCard> {
+    return await apiClient.get<RfidCard>(`${this.baseUrl}/${tagId}`)
+  }
+
+  async create(data: Partial<RfidCard>): Promise<RfidCard> {
+    return await apiClient.post<RfidCard>(this.baseUrl, data)
+  }
+
+  async block(tagId: string): Promise<RfidCard> {
+    return await apiClient.post<RfidCard>(`${this.baseUrl}/${tagId}/block`)
+  }
+
+  async activate(tagId: string): Promise<RfidCard> {
+    return await apiClient.post<RfidCard>(`${this.baseUrl}/${tagId}/activate`)
+  }
+
+  async delete(tagId: string): Promise<void> {
+    await apiClient.delete(`${this.baseUrl}/${tagId}`)
+  }
 }
 
-// Operations API
-export const operationsService = {
-  remoteStart: (cpId: string, data: { connectorId: number; idTag: string }) =>
-    apiClient.post(`/admin/${cpId}/start-transaction`, data),
-  remoteStop: (cpId: string, data: { transactionId: number }) =>
-    apiClient.post(`/admin/${cpId}/stop-transaction`, data),
-  changeAvailability: (cpId: string, data: { connectorId: number; type: string }) =>
-    apiClient.post(`/admin/${cpId}/change-availability`, data),
-  reset: (cpId: string, data: { type: 'Soft' | 'Hard' }) =>
-    apiClient.post(`/admin/${cpId}/reset`, data),
-  unlockConnector: (cpId: string, data: { connectorId: number }) =>
-    apiClient.post(`/admin/${cpId}/unlock-connector`, data),
+class ReservationService {
+  private readonly baseUrl = '/reservations'
+
+  async getAll(): Promise<Reservation[]> {
+    return await apiClient.get<Reservation[]>(this.baseUrl)
+  }
+
+  async getById(id: number): Promise<Reservation> {
+    return await apiClient.get<Reservation>(`${this.baseUrl}/${id}`)
+  }
+
+  async create(data: Partial<Reservation>): Promise<Reservation> {
+    return await apiClient.post<Reservation>(this.baseUrl, data)
+  }
+
+  async update(id: number, data: Partial<Reservation>): Promise<Reservation> {
+    return await apiClient.put<Reservation>(`${this.baseUrl}/${id}`, data)
+  }
+
+  async delete(id: number): Promise<void> {
+    await apiClient.delete(`${this.baseUrl}/${id}`)
+  }
 }
 
-// User API
-export const userService = {
-  getAll: () => apiClient.get<User[]>('/users'),
-  getById: (id: number) => apiClient.get<User>(`/users/${id}`),
-  create: (data: Partial<User>) => apiClient.post<User>('/users', data),
-  update: (id: number, data: Partial<User>) => apiClient.put<User>(`/users/${id}`, data),
-  delete: (id: number) => apiClient.delete(`/users/${id}`),
+class UserService {
+  private readonly baseUrl = '/users'
+
+  async getAll(): Promise<User[]> {
+    return await apiClient.get<User[]>(this.baseUrl)
+  }
+
+  async getById(id: number): Promise<User> {
+    return await apiClient.get<User>(`${this.baseUrl}/${id}`)
+  }
+
+  async create(data: Partial<User>): Promise<User> {
+    return await apiClient.post<User>(this.baseUrl, data)
+  }
+
+  async update(id: number, data: Partial<User>): Promise<User> {
+    return await apiClient.put<User>(`${this.baseUrl}/${id}`, data)
+  }
+
+  async delete(id: number): Promise<void> {
+    await apiClient.delete(`${this.baseUrl}/${id}`)
+  }
 }
+
+class AuditLogService {
+  private readonly baseUrl = '/audit'
+
+  async getByStationId(stationId: number): Promise<AuditLog[]> {
+    return await apiClient.get<AuditLog[]>(`${this.baseUrl}/station/${stationId}`)
+  }
+}
+
+class OperationsService {
+  private readonly baseUrl = '/admin'
+
+  async remoteStart(cpId: string, data: { connectorId?: number; idTag: string }) {
+    return await apiClient.post(`${this.baseUrl}/${cpId}/start-transaction`, data)
+  }
+
+  async remoteStop(cpId: string, data: { transactionId: number }) {
+    return await apiClient.post(`${this.baseUrl}/${cpId}/stop-transaction`, data)
+  }
+
+  async changeAvailability(cpId: string, data: { connectorId: number; type: string }) {
+    return await apiClient.post(`${this.baseUrl}/${cpId}/change-availability`, data)
+  }
+
+  async reset(cpId: string, data?: { type?: string }) {
+    return await apiClient.post(`${this.baseUrl}/${cpId}/reset`, data)
+  }
+
+  async unlockConnector(cpId: string, data: { connectorId: number }) {
+    return await apiClient.post(`${this.baseUrl}/${cpId}/unlock-connector`, data)
+  }
+}
+
+export const stationService = new StationService()
+export const sessionService = new SessionService()
+export const rfidService = new RfidService()
+export const reservationService = new ReservationService()
+export const userService = new UserService()
+export const auditLogService = new AuditLogService()
+export const operationsService = new OperationsService()

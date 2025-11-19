@@ -25,10 +25,33 @@ model ChargingStation {
   lastHeartbeatAt  DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+  
+  // Hardware info
+  powerOutputKw    Float?
+  maxCurrentAmp    Float?
+  maxVoltageV      Float?
 
   connectors       Connector[]
   sessions         ChargingSession[]
   reservations     Reservation[]
+  auditLogs        AuditLog[]    @relation("ChargingStationAuditLogs")
+  
+  // Reference to the model
+  stationModel     StationModel? @relation(fields: [modelId], references: [id])
+  modelId          Int?
+}
+
+model StationModel {
+  id               Int       @id @default(autoincrement())
+  name             String    @unique
+  vendor           String?
+  powerOutputKw    Float?
+  maxCurrentAmp    Float?
+  maxVoltageV      Float?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  chargingStations ChargingStation[]
 }
 
 model Connector {
@@ -102,4 +125,24 @@ model Reservation {
   chargingStation  ChargingStation @relation(fields: [chargingStationId], references: [id])
 
   @@unique([chargingStationId, ocppReservationId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  actionType String   // REMOTE_START, CHANGE_AVAILABILITY, etc.
+  targetType String   // STATION, CONNECTOR, SESSION, etc.
+  targetId  Int?
+  timestamp DateTime @default(now())
+  metadata  String?  // JSON string
+  status    String?  // SUCCESS, FAILED, PENDING
+  request   String?  // JSON string of request payload
+  response  String?  // JSON string of response payload
+  
+  // Relations
+  chargingStation ChargingStation? @relation("ChargingStationAuditLogs", fields: [chargingStationId], references: [id])
+  chargingStationId Int?
+  
+  @@index([chargingStationId])
+  @@index([timestamp])
 }

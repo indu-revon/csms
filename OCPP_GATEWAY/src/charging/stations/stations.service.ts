@@ -6,17 +6,27 @@ export interface CreateStationDto {
   ocppIdentifier: string;
   vendor?: string;
   model?: string;
-  serialNumber?: string;
   firmwareVersion?: string;
+  serialNumber?: string;
+  // Hardware info
+  powerOutputKw?: number;
+  maxCurrentAmp?: number;
+  maxVoltageV?: number;
+  modelId?: number;
 }
 
 export interface UpdateStationDto {
   vendor?: string;
   model?: string;
-  serialNumber?: string;
   firmwareVersion?: string;
+  serialNumber?: string;
   status?: string;
   lastHeartbeatAt?: Date;
+  // Hardware info
+  powerOutputKw?: number;
+  maxCurrentAmp?: number;
+  maxVoltageV?: number;
+  modelId?: number;
 }
 
 @Injectable()
@@ -29,8 +39,12 @@ export class StationsService {
       update: {
         vendor: data.vendor,
         model: data.model,
-        serialNumber: data.serialNumber,
         firmwareVersion: data.firmwareVersion,
+        serialNumber: data.serialNumber,
+        powerOutputKw: data.powerOutputKw,
+        maxCurrentAmp: data.maxCurrentAmp,
+        maxVoltageV: data.maxVoltageV,
+        modelId: data.modelId,
         status: ChargePointStatus.ONLINE,
         lastHeartbeatAt: new Date(),
       },
@@ -38,8 +52,12 @@ export class StationsService {
         ocppIdentifier: data.ocppIdentifier,
         vendor: data.vendor,
         model: data.model,
-        serialNumber: data.serialNumber,
         firmwareVersion: data.firmwareVersion,
+        serialNumber: data.serialNumber,
+        powerOutputKw: data.powerOutputKw,
+        maxCurrentAmp: data.maxCurrentAmp,
+        maxVoltageV: data.maxVoltageV,
+        modelId: data.modelId,
         status: ChargePointStatus.MAINTENANCE, // Set new stations to maintenance by default
         lastHeartbeatAt: new Date(),
       },
@@ -51,6 +69,7 @@ export class StationsService {
       where: { ocppIdentifier },
       include: {
         connectors: true,
+        stationModel: true,
       },
     });
   }
@@ -112,6 +131,7 @@ export class StationsService {
     return this.prisma.chargingStation.findMany({
       include: {
         connectors: true,
+        stationModel: true,
       },
     });
   }

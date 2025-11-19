@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react'
-import { Table, Button, Modal, Form, Input, Select, message, Tag, Space } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { Table, Button, Modal, Form, Input, Select, message, Tag, Space, InputNumber, Row, Col } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
 import { stationService, type Station } from '@/services/api'
+import { modelService, type Model } from '@/services/modelService'
+import { useNavigate } from 'react-router-dom'
 
 export default function StationList() {
+  const navigate = useNavigate()
   const [stations, setStations] = useState<Station[]>([])
+  const [models, setModels] = useState<Model[]>([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
+  const [modelModalVisible, setModelModalVisible] = useState(false)
   const [editingStation, setEditingStation] = useState<Station | null>(null)
   const [form] = Form.useForm()
+  const [modelForm] = Form.useForm()
 
   const fetchStations = async () => {
     setLoading(true)
@@ -22,8 +28,18 @@ export default function StationList() {
     }
   }
 
+  const fetchModels = async () => {
+    try {
+      const data = await modelService.getAll()
+      setModels(data)
+    } catch (error) {
+      message.error('Failed to fetch models')
+    }
+  }
+
   useEffect(() => {
     fetchStations()
+    fetchModels()
   }, [])
 
   const handleCreate = () => {
@@ -38,9 +54,13 @@ export default function StationList() {
     setModalVisible(true)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleView = (station: Station) => {
+    navigate(`/stations/${station.id}`)
+  }
+
+  const handleDelete = async (ocppIdentifier: string) => {
     try {
-      await stationService.delete(id)
+      await stationService.delete(ocppIdentifier)
       message.success('Station deleted successfully')
       fetchStations()
     } catch (error) {
@@ -62,6 +82,18 @@ export default function StationList() {
       fetchStations()
     } catch (error: any) {
       message.error(error.message || 'Failed to save station')
+    }
+  }
+
+  const handleModelSubmit = async (values: any) => {
+    try {
+      await modelService.create(values)
+      message.success('Model created successfully')
+      setModelModalVisible(false)
+      modelForm.resetFields()
+      fetchModels()
+    } catch (error: any) {
+      message.error(error.message || 'Failed to create model')
     }
   }
 
@@ -116,13 +148,18 @@ export default function StationList() {
       render: (_: any, record: Station) => (
         <Space>
           <Button 
+            icon={<EyeOutlined />} 
+            onClick={() => handleView(record)}
+            size="small"
+          />
+          <Button 
             icon={<EditOutlined />} 
             onClick={() => handleEdit(record)}
             size="small"
           />
           <Button 
             icon={<DeleteOutlined />} 
-            onClick={() => handleDelete(record.id)}
+            onClick={() => handleDelete(record.ocppIdentifier)}
             size="small"
             danger
           />
@@ -160,12 +197,112 @@ export default function StationList() {
           form.resetFields()
         }}
         onOk={() => form.submit()}
+        width={800}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item 
+                name="ocppIdentifier" 
+                label="OCPP Identifier" 
+                rules={[{ required: true, message: 'Please input OCPP identifier!' }]}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="vendor" label="Vendor">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="modelId" label="Charging Station Model">
+                <Select 
+                  showSearch
+                  placeholder="Select a model"
+                  optionFilterProp="label"
+                  dropdownRender={(menu) => (
+                    <>
+                      {menu}
+                      <Button 
+                        type="link" 
+                        icon={<PlusOutlined />} 
+                        onClick={() => setModelModalVisible(true)}
+                        block
+                      >
+                        Add New Model
+                      </Button>
+                    </>
+                  )}
+                >
+                  {models.map(model => (
+                    <Select.Option 
+                      key={model.id} 
+                      value={model.id} 
+                      label={`${model.name} (${model.vendor || 'Unknown Vendor'})`}
+                    >
+                      {model.name} ({model.vendor || 'Unknown Vendor'})
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="firmwareVersion" label="Firmware Version">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Form.Item name="serialNumber" label="Serial Number">
+            <Input />
+          </Form.Item>
+          
+          <h3>Hardware Info</h3>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="powerOutputKw" label="Power Output (kW)">
+                <InputNumber style={{ width: '100%' }} min={0} step={0.1} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="maxCurrentAmp" label="Max Current (Amp)">
+                <InputNumber style={{ width: '100%' }} min={0} step={0.1} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="maxVoltageV" label="Max Voltage (V)">
+                <InputNumber style={{ width: '100%' }} min={0} step={1} />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Form.Item name="status" label="Status">
+            <Select>
+              <Select.Option value="MAINTENANCE">Maintenance</Select.Option>
+              <Select.Option value="ERROR">Error</Select.Option>
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+      
+      <Modal
+        title="Add New Model"
+        open={modelModalVisible}
+        onCancel={() => {
+          setModelModalVisible(false)
+          modelForm.resetFields()
+        }}
+        onOk={() => modelForm.submit()}
+      >
+        <Form form={modelForm} layout="vertical" onFinish={handleModelSubmit}>
           <Form.Item 
-            name="ocppIdentifier" 
-            label="OCPP Identifier" 
-            rules={[{ required: true, message: 'Please input OCPP identifier!' }]}
+            name="name" 
+            label="Model Name" 
+            rules={[{ required: true, message: 'Please input model name!' }]}
           >
             <Input />
           </Form.Item>
@@ -174,24 +311,24 @@ export default function StationList() {
             <Input />
           </Form.Item>
           
-          <Form.Item name="model" label="Model">
-            <Input />
-          </Form.Item>
-          
-          <Form.Item name="firmwareVersion" label="Firmware Version">
-            <Input />
-          </Form.Item>
-          
-          <Form.Item name="serialNumber" label="Serial Number">
-            <Input />
-          </Form.Item>
-          
-          <Form.Item name="status" label="Status">
-            <Select>
-              <Select.Option value="MAINTENANCE">Maintenance</Select.Option>
-              <Select.Option value="ERROR">Error</Select.Option>
-            </Select>
-          </Form.Item>
+          <h3>Hardware Specifications</h3>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="powerOutputKw" label="Power Output (kW)">
+                <InputNumber style={{ width: '100%' }} min={0} step={0.1} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="maxCurrentAmp" label="Max Current (Amp)">
+                <InputNumber style={{ width: '100%' }} min={0} step={0.1} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="maxVoltageV" label="Max Voltage (V)">
+                <InputNumber style={{ width: '100%' }} min={0} step={1} />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </div>

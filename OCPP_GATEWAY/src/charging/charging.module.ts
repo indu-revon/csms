@@ -5,6 +5,8 @@ import { ConnectorsService } from './connectors/connectors.service';
 import { SessionsService } from './sessions/sessions.service';
 import { RfidService } from './rfid/rfid.service';
 import { ReservationsService } from './reservations/reservations.service';
+import { ModelsService } from './models/models.service';
+import { AuditLogService } from '../audit/audit-log.service';
 
 @Module({
   providers: [
@@ -14,6 +16,8 @@ import { ReservationsService } from './reservations/reservations.service';
     SessionsService,
     RfidService,
     ReservationsService,
+    ModelsService,
+    AuditLogService,
   ],
   exports: [
     StationsService,
@@ -21,6 +25,8 @@ import { ReservationsService } from './reservations/reservations.service';
     SessionsService,
     RfidService,
     ReservationsService,
+    ModelsService,
+    AuditLogService,
   ],
 })
 export class ChargingModule {}
