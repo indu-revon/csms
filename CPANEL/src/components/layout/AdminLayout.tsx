@@ -82,6 +82,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       type: 'group',
       children: [
         {
+          key: '/rfid',
+          icon: <IdcardOutlined />,
+          label: 'RFID Cards',
+        },
+        {
           key: '/ev-drivers',
           icon: <CarOutlined />,
           label: 'EV Drivers',
