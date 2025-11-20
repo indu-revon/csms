@@ -5,6 +5,13 @@ import { stationService, type Station, auditLogService, type AuditLog } from '@/
 
 const { TabPane } = Tabs
 
+const WipTab = () => (
+  <div style={{ textAlign: 'center', padding: '40px', background: '#f0f2f5', borderRadius: '8px', margin: '20px 0' }}>
+    <h2 style={{ marginBottom: '16px' }}>🚧 Work in Progress!</h2>
+    <p style={{ fontSize: '16px' }}>We're working hard to bring you this feature. Stay tuned! 🚀</p>
+  </div>
+)
+
 export default function StationDetail() {
   const { id } = useParams<{ id: string }>()
   const [station, setStation] = useState<Station | null>(null)
@@ -235,7 +242,32 @@ export default function StationDetail() {
             />
           </Card>
         </TabPane>
+
+        <TabPane tab="Tariffs" key="3">
+          <WipTab />
+        </TabPane>
+        <TabPane tab="Local List" key="4">
+          <WipTab />
+        </TabPane>
+        <TabPane tab="Configurations" key="5">
+          <WipTab />
+        </TabPane>
+        <TabPane tab="Sessions" key="6">
+          <WipTab />
+        </TabPane>
+        <TabPane tab="Server Logs" key="7">
+          <WipTab />
+        </TabPane>
+        <TabPane tab="Uptime" key="8">
+          <WipTab />
+        </TabPane>
+        <TabPane tab="Consumption" key="9">
+          <WipTab />
+        </TabPane>
+        <TabPane tab="Revenue" key="10">
+          <WipTab />
+        </TabPane>
       </Tabs>
-    </div>
+    </div >
   )
 }
