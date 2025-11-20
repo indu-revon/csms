@@ -147,19 +147,28 @@ export default function StationList() {
       key: 'actions',
       render: (_: any, record: Station) => (
         <Space>
-          <Button 
-            icon={<EyeOutlined />} 
-            onClick={() => handleView(record)}
+          <Button
+            icon={<EyeOutlined />}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleView(record)
+            }}
             size="small"
           />
-          <Button 
-            icon={<EditOutlined />} 
-            onClick={() => handleEdit(record)}
+          <Button
+            icon={<EditOutlined />}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleEdit(record)
+            }}
             size="small"
           />
-          <Button 
-            icon={<DeleteOutlined />} 
-            onClick={() => handleDelete(record.ocppIdentifier)}
+          <Button
+            icon={<DeleteOutlined />}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDelete(record.ocppIdentifier)
+            }}
             size="small"
             danger
           />
@@ -172,21 +181,25 @@ export default function StationList() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <h1>Charging Stations</h1>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />} 
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
           onClick={handleCreate}
         >
           Add Station
         </Button>
       </div>
-      
-      <Table 
-        dataSource={stations} 
-        columns={columns} 
+
+      <Table
+        dataSource={stations}
+        columns={columns}
         loading={loading}
         rowKey="id"
         pagination={{ pageSize: 10 }}
+        onRow={(record) => ({
+          onClick: () => handleView(record),
+          style: { cursor: 'pointer' }
+        })}
       />
 
       <Modal
@@ -202,9 +215,9 @@ export default function StationList() {
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item 
-                name="ocppIdentifier" 
-                label="OCPP Identifier" 
+              <Form.Item
+                name="ocppIdentifier"
+                label="OCPP Identifier"
                 rules={[{ required: true, message: 'Please input OCPP identifier!' }]}
               >
                 <Input />
@@ -216,20 +229,20 @@ export default function StationList() {
               </Form.Item>
             </Col>
           </Row>
-          
+
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="modelId" label="Charging Station Model">
-                <Select 
+                <Select
                   showSearch
                   placeholder="Select a model"
                   optionFilterProp="label"
                   dropdownRender={(menu) => (
                     <>
                       {menu}
-                      <Button 
-                        type="link" 
-                        icon={<PlusOutlined />} 
+                      <Button
+                        type="link"
+                        icon={<PlusOutlined />}
                         onClick={() => setModelModalVisible(true)}
                         block
                       >
@@ -239,9 +252,9 @@ export default function StationList() {
                   )}
                 >
                   {models.map(model => (
-                    <Select.Option 
-                      key={model.id} 
-                      value={model.id} 
+                    <Select.Option
+                      key={model.id}
+                      value={model.id}
                       label={`${model.name} (${model.vendor || 'Unknown Vendor'})`}
                     >
                       {model.name} ({model.vendor || 'Unknown Vendor'})
@@ -256,11 +269,11 @@ export default function StationList() {
               </Form.Item>
             </Col>
           </Row>
-          
+
           <Form.Item name="serialNumber" label="Serial Number">
             <Input />
           </Form.Item>
-          
+
           <h3>Hardware Info</h3>
           <Row gutter={16}>
             <Col span={8}>
@@ -279,7 +292,7 @@ export default function StationList() {
               </Form.Item>
             </Col>
           </Row>
-          
+
           <Form.Item name="status" label="Status">
             <Select>
               <Select.Option value="MAINTENANCE">Maintenance</Select.Option>
@@ -288,7 +301,7 @@ export default function StationList() {
           </Form.Item>
         </Form>
       </Modal>
-      
+
       <Modal
         title="Add New Model"
         open={modelModalVisible}
@@ -299,18 +312,18 @@ export default function StationList() {
         onOk={() => modelForm.submit()}
       >
         <Form form={modelForm} layout="vertical" onFinish={handleModelSubmit}>
-          <Form.Item 
-            name="name" 
-            label="Model Name" 
+          <Form.Item
+            name="name"
+            label="Model Name"
             rules={[{ required: true, message: 'Please input model name!' }]}
           >
             <Input />
           </Form.Item>
-          
+
           <Form.Item name="vendor" label="Vendor">
             <Input />
           </Form.Item>
-          
+
           <h3>Hardware Specifications</h3>
           <Row gutter={16}>
             <Col span={8}>
