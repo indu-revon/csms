@@ -1,4 +1,5 @@
-import { Layout, Menu, theme, Avatar, Dropdown, Space } from 'antd'
+import { useState } from 'react'
+import { Layout, Menu, theme, Avatar, Dropdown, Space, Button } from 'antd'
 import {
   DashboardOutlined,
   ThunderboltOutlined,
@@ -15,7 +16,9 @@ import {
   DatabaseOutlined,
   WifiOutlined,
   ConsoleSqlOutlined,
-  QrcodeOutlined
+  QrcodeOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
@@ -28,6 +31,7 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
+  const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
@@ -183,6 +187,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
+        trigger={null}
+        collapsible
+        collapsed={collapsed}
+        onCollapse={(value) => setCollapsed(value)}
         breakpoint="lg"
         collapsedWidth="0"
         style={{
@@ -192,6 +200,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           left: 0,
           top: 0,
           bottom: 0,
+          zIndex: 100,
         }}
       >
         <div
@@ -205,7 +214,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             fontWeight: 'bold',
           }}
         >
-          REVON CMS
+          {collapsed ? 'CMS' : 'REVON CMS'}
         </div>
         <Menu
           theme="dark"
@@ -215,14 +224,26 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
-      <Layout style={{ marginLeft: 200 }}>
-        <Header style={{ padding: '0 24px', background: colorBgContainer, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <Space style={{ cursor: 'pointer' }}>
-              <Avatar icon={<UserOutlined />} />
-              <span>{user?.name || 'Admin'}</span>
-            </Space>
-          </Dropdown>
+      <Layout style={{ marginLeft: collapsed ? 0 : 200, transition: 'margin-left 0.2s' }}>
+        <Header style={{ padding: 0, background: colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setCollapsed(!collapsed)}
+            style={{
+              fontSize: '16px',
+              width: 64,
+              height: 64,
+            }}
+          />
+          <div style={{ paddingRight: 24 }}>
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+              <Space style={{ cursor: 'pointer' }}>
+                <Avatar icon={<UserOutlined />} />
+                <span>{user?.name || 'Admin'}</span>
+              </Space>
+            </Dropdown>
+          </div>
         </Header>
         <Content style={{ margin: '24px 16px 0', overflow: 'initial' }}>
           <div
