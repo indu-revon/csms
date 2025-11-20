@@ -55,7 +55,7 @@ export default function StationList() {
   }
 
   const handleView = (station: Station) => {
-    navigate(`/stations/${station.id}`)
+    navigate(`/stations/${station.ocppIdentifier}`)
   }
 
   const handleDelete = async (ocppIdentifier: string) => {
