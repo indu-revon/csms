@@ -124,6 +124,22 @@ class SessionService {
   async getByStation(cpId: string): Promise<Session[]> {
     return await apiClient.get<Session[]>(`${this.baseUrl}/station/${cpId}`)
   }
+
+  async getById(id: number): Promise<Session> {
+    return await apiClient.get<Session>(`${this.baseUrl}/${id}`)
+  }
+
+  async create(data: Partial<Session>): Promise<Session> {
+    return await apiClient.post<Session>(this.baseUrl, data)
+  }
+
+  async update(id: number, data: Partial<Session>): Promise<Session> {
+    return await apiClient.put<Session>(`${this.baseUrl}/${id}`, data)
+  }
+
+  async delete(id: number): Promise<void> {
+    await apiClient.delete(`${this.baseUrl}/${id}`)
+  }
 }
 
 class RfidService {
@@ -139,6 +155,10 @@ class RfidService {
 
   async create(data: Partial<RfidCard>): Promise<RfidCard> {
     return await apiClient.post<RfidCard>(this.baseUrl, data)
+  }
+
+  async update(tagId: string, data: Partial<RfidCard>): Promise<RfidCard> {
+    return await apiClient.put<RfidCard>(`${this.baseUrl}/${tagId}`, data)
   }
 
   async block(tagId: string): Promise<RfidCard> {

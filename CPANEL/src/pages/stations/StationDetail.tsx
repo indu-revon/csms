@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Row, Col, Tag, Descriptions, Table, message, Tabs, Collapse } from 'antd'
-import { stationService, type Station, type Connector, auditLogService, type AuditLog } from '@/services/api'
+import { Card, Row, Col, Tag, Descriptions, Table, message, Tabs } from 'antd'
+import { stationService, type Station, auditLogService, type AuditLog } from '@/services/api'
 
 const { TabPane } = Tabs
-const { Panel } = Collapse
 
 export default function StationDetail() {
   const { id } = useParams<{ id: string }>()
@@ -155,7 +154,7 @@ export default function StationDetail() {
   return (
     <div>
       <h1>Charging Station Details</h1>
-      
+
       <Tabs defaultActiveKey="1">
         <TabPane tab="Charging Station Info" key="1">
           <Card title="Station Information" style={{ marginBottom: 24 }}>
@@ -181,7 +180,7 @@ export default function StationDetail() {
                 </Descriptions>
               </Col>
             </Row>
-            
+
             <h3>Hardware Information</h3>
             <Row gutter={16}>
               <Col span={8}>
@@ -203,20 +202,20 @@ export default function StationDetail() {
           </Card>
 
           <Card title="Connectors">
-            <Table 
-              dataSource={station.connectors || []} 
-              columns={connectorColumns} 
+            <Table
+              dataSource={station.connectors || []}
+              columns={connectorColumns}
               rowKey="id"
               pagination={false}
             />
           </Card>
         </TabPane>
-        
+
         <TabPane tab="Remote Actions" key="2">
           <Card title="Remote Actions History">
-            <Table 
-              dataSource={auditLogs} 
-              columns={auditLogColumns} 
+            <Table
+              dataSource={auditLogs}
+              columns={auditLogColumns}
               loading={auditLogsLoading}
               rowKey="id"
               pagination={{ pageSize: 10 }}

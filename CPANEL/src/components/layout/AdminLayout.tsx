@@ -5,7 +5,6 @@ import {
   HistoryOutlined,
   IdcardOutlined,
   CalendarOutlined,
-  ControlOutlined,
   UserOutlined,
   LogoutOutlined,
   TeamOutlined,

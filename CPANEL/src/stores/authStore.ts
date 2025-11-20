@@ -23,8 +23,8 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      
-      login: async (email: string, password: string) => {
+
+      login: async (email: string, _password: string) => {
         // This will be implemented with actual API call
         // For now, demo authentication
         const mockUser: User = {
@@ -34,14 +34,14 @@ export const useAuthStore = create<AuthState>()(
           role: 'SUPER_ADMIN',
         }
         const mockToken = 'mock-jwt-token'
-        
+
         set({
           user: mockUser,
           token: mockToken,
           isAuthenticated: true,
         })
       },
-      
+
       logout: () => {
         set({
           user: null,
@@ -49,7 +49,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
         })
       },
-      
+
       setUser: (user: User, token: string) => {
         set({
           user,
