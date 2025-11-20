@@ -13,7 +13,7 @@ export class BootNotificationHandler {
   async handle(cpId: string, payload: BootNotificationRequest): Promise<BootNotificationResponse> {
     // Check if the station is already registered in the system
     const existingStation = await this.stationsService.findByOcppIdentifier(cpId);
-    
+
     if (!existingStation) {
       // Station is not registered, reject the connection
       const now = new Date().toISOString();
@@ -25,12 +25,20 @@ export class BootNotificationHandler {
     }
 
     // Station is registered, proceed with normal boot notification handling
+    // Use payload values if available, otherwise fall back to existing station data
+    const serialNumber = payload.chargePointSerialNumber || payload.chargeBoxSerialNumber || existingStation.serialNumber;
+    const firmwareVersion = payload.firmwareVersion || existingStation.firmwareVersion;
+    const vendor = payload.chargePointVendor || existingStation.vendor;
+    const model = payload.chargePointModel || existingStation.model;
+
+    console.log(`[BootNotification] Updating station ${cpId} info: Firmware=${firmwareVersion}, Serial=${serialNumber}`);
+
     await this.stationsService.upsertStation({
       ocppIdentifier: cpId,
-      vendor: payload.chargePointVendor,
-      model: payload.chargePointModel,
-      serialNumber: payload.chargePointSerialNumber,
-      firmwareVersion: payload.firmwareVersion,
+      vendor: vendor,
+      model: model,
+      serialNumber: serialNumber,
+      firmwareVersion: firmwareVersion,
     });
 
     const now = new Date().toISOString();
