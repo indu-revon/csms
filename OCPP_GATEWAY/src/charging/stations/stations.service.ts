@@ -31,7 +31,7 @@ export interface UpdateStationDto {
 
 @Injectable()
 export class StationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async upsertStation(data: CreateStationDto) {
     return this.prisma.chargingStation.upsert({
@@ -78,7 +78,14 @@ export class StationsService {
     // Validate status if provided
     if (data.status) {
       const allowedStatuses = [ChargePointStatus.MAINTENANCE, ChargePointStatus.ERROR];
-      if (!allowedStatuses.includes(data.status as ChargePointStatus)) {
+      const currentStation = await this.findByOcppIdentifier(ocppIdentifier);
+
+      if (!currentStation) {
+        throw new Error('Station not found');
+      }
+
+      // Allow update if status is one of the allowed statuses OR if it matches the current status
+      if (!allowedStatuses.includes(data.status as ChargePointStatus) && data.status !== currentStation.status) {
         throw new Error(`Invalid status. Stations can only be set to MAINTENANCE or ERROR status.`);
       }
     }
