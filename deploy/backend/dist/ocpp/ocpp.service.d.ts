@@ -1,0 +1,36 @@
+import { WebSocket } from 'ws';
+import { StationsService } from '../charging/stations/stations.service';
+import { BootNotificationHandler } from './handlers/boot-notification.handler';
+import { HeartbeatHandler } from './handlers/heartbeat.handler';
+import { StatusNotificationHandler } from './handlers/status-notification.handler';
+import { AuthorizeHandler } from './handlers/authorize.handler';
+import { StartTransactionHandler } from './handlers/start-transaction.handler';
+import { StopTransactionHandler } from './handlers/stop-transaction.handler';
+import { MeterValuesHandler } from './handlers/meter-values.handler';
+import { ReserveNowHandler } from './handlers/reserve-now.handler';
+import { CancelReservationHandler } from './handlers/cancel-reservation.handler';
+export declare class OcppService {
+    private readonly stationsService;
+    private readonly bootNotificationHandler;
+    private readonly heartbeatHandler;
+    private readonly statusNotificationHandler;
+    private readonly authorizeHandler;
+    private readonly startTransactionHandler;
+    private readonly stopTransactionHandler;
+    private readonly meterValuesHandler;
+    private readonly reserveNowHandler;
+    private readonly cancelReservationHandler;
+    private readonly logger;
+    private cpConnections;
+    private socketToCpId;
+    constructor(stationsService: StationsService, bootNotificationHandler: BootNotificationHandler, heartbeatHandler: HeartbeatHandler, statusNotificationHandler: StatusNotificationHandler, authorizeHandler: AuthorizeHandler, startTransactionHandler: StartTransactionHandler, stopTransactionHandler: StopTransactionHandler, meterValuesHandler: MeterValuesHandler, reserveNowHandler: ReserveNowHandler, cancelReservationHandler: CancelReservationHandler);
+    registerConnection(cpId: string, client: WebSocket): Promise<void>;
+    handleDisconnect(client: WebSocket): Promise<void>;
+    handleIncomingMessage(client: WebSocket, raw: string): Promise<void>;
+    private handleCall;
+    private sendCallResult;
+    private sendCallError;
+    sendCommand(cpId: string, action: string, payload: any): Promise<any>;
+    getConnectedStations(): string[];
+    isStationConnected(cpId: string): boolean;
+}

@@ -1,0 +1,9 @@
+export declare enum ChargePointStatus {
+    ONLINE = "ONLINE",
+    OFFLINE = "OFFLINE",
+    AVAILABLE = "AVAILABLE",
+    UNAVAILABLE = "UNAVAILABLE",
+    FAULTED = "FAULTED",
+    MAINTENANCE = "MAINTENANCE",
+    ERROR = "ERROR"
+}
