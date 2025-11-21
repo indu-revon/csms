@@ -11,9 +11,11 @@ export default defineConfig({
   },
   server: {
     port: 3003,
+    host: true,
+    allowedHosts: ['dxrad.in', 'localhost'],
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
     },
