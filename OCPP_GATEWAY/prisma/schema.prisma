@@ -146,3 +146,33 @@ model AuditLog {
   @@index([chargingStationId])
   @@index([timestamp])
 }
+
+model User {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique
+  name           String
+  role           String   @default("VIEWER") // SUPER_ADMIN, OPERATOR, VIEWER
+  password       String?  // Optional for now if using external auth or just simple
+  status         String   @default("Active") // Active, Blocked
+  organization   String?
+  locations      String?  // Comma separated or JSON
+  locationsGroup String?
+  phone          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Driver {
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String   @unique
+  phone          String?
+  virtualRfidTag String?  @unique
+  status         String   @default("Active") // Active, Blocked
+  balance        Float    @default(0.0)
+  holdBalance    Float    @default(0.0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relations can be added later as needed, e.g. to ChargingSession
+}
