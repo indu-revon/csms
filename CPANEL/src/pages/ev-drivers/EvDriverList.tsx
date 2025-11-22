@@ -83,7 +83,7 @@ export default function EvDriverList() {
     setPage(1)
   }
 
-  const handleTableChange = (pagination: any, filters: any, sorter: any) => {
+  const handleTableChange = (pagination: any, _filters: any, sorter: any) => {
     setPage(pagination.current)
     setPageSize(pagination.pageSize)
 

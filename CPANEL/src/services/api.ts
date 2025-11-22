@@ -72,6 +72,11 @@ export interface User {
   email: string
   name: string
   role: string
+  organization?: string
+  locations?: string
+  locationsGroup?: string
+  phone?: string
+  status?: string
   createdAt: string
   updatedAt: string
 }

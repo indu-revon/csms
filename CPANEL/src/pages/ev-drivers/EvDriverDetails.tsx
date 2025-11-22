@@ -27,7 +27,7 @@ import {
     ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { driverService, type Driver } from '../../services/api'
+import { driverService } from '../../services/api'
 
 const { Title, Text } = Typography
 

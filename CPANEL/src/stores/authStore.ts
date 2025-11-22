@@ -24,22 +24,37 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
 
-      login: async (email: string, _password: string) => {
-        // This will be implemented with actual API call
-        // For now, demo authentication
-        const mockUser: User = {
-          id: '1',
-          email,
-          name: 'Admin User',
-          role: 'SUPER_ADMIN',
-        }
-        const mockToken = 'mock-jwt-token'
+      login: async (email: string, password: string) => {
+        try {
+          // Import apiClient dynamically to avoid circular dependency
+          const { apiClient } = await import('../services/apiClient')
 
-        set({
-          user: mockUser,
-          token: mockToken,
-          isAuthenticated: true,
-        })
+          const response = await apiClient.post<{ access_token: string }>('/auth/login', {
+            email,
+            password,
+          })
+
+          const token = response.access_token
+
+          // Decode token to get user info (simple decode for now, or fetch user profile)
+          // For now, we'll construct the user object from the email and a default role
+          // In a real app, you'd decode the JWT or fetch /auth/me
+          const user: User = {
+            id: '1', // Placeholder, ideally comes from token/profile
+            email,
+            name: 'Admin User', // Placeholder
+            role: 'SUPER_ADMIN',
+          }
+
+          set({
+            user,
+            token,
+            isAuthenticated: true,
+          })
+        } catch (error) {
+          console.error('Login failed:', error)
+          throw error
+        }
       },
 
       logout: () => {
