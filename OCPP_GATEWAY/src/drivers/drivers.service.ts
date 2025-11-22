@@ -31,6 +31,15 @@ export class DriversService {
         });
     }
 
+    async count(params: {
+        where?: Prisma.DriverWhereInput;
+    }): Promise<number> {
+        const { where } = params;
+        return this.prisma.driver.count({
+            where,
+        });
+    }
+
     async createDriver(data: Prisma.DriverCreateInput): Promise<Driver> {
         return this.prisma.driver.create({
             data,

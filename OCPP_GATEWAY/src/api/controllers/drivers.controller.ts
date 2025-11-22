@@ -7,11 +7,17 @@ import {
     Param,
     Delete,
     Query,
+    UseGuards,
 } from '@nestjs/common';
 import { DriversService } from '../../drivers/drivers.service';
 import { Driver as DriverModel } from '@prisma/client';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { CreateDriverDto } from '../../drivers/dto/create-driver.dto';
+import { UpdateDriverDto } from '../../drivers/dto/update-driver.dto';
+import { WalletOperationDto } from '../../drivers/dto/wallet-operation.dto';
 
 @Controller('api/drivers')
+@UseGuards(JwtAuthGuard)
 export class DriversController {
     constructor(private readonly driversService: DriversService) { }
 
@@ -36,11 +42,10 @@ export class DriversController {
 
         const orderBy: any = sortBy ? { [sortBy]: 'desc' } : { createdAt: 'desc' };
 
-        const data = await this.driversService.drivers({ skip, take, where, orderBy });
-
-        // For total count, we just count without pagination
-        const allDrivers = await this.driversService.drivers({ where });
-        const total = allDrivers.length;
+        const [data, total] = await Promise.all([
+            this.driversService.drivers({ skip, take, where, orderBy }),
+            this.driversService.count({ where }),
+        ]);
 
         return { data, total };
     }
@@ -52,7 +57,7 @@ export class DriversController {
 
     @Post()
     async createDriver(
-        @Body() driverData: { name: string; email: string },
+        @Body() driverData: CreateDriverDto,
     ): Promise<DriverModel> {
         return this.driversService.createDriver(driverData);
     }
@@ -60,7 +65,7 @@ export class DriversController {
     @Put(':id')
     async updateDriver(
         @Param('id') id: string,
-        @Body() driverData: { name?: string; email?: string },
+        @Body() driverData: UpdateDriverDto,
     ): Promise<DriverModel> {
         return this.driversService.updateDriver({
             where: { id: Number(id) },
@@ -77,7 +82,7 @@ export class DriversController {
     @Post(':id/wallet/topup')
     async topUpWallet(
         @Param('id') id: string,
-        @Body() body: { amount: number },
+        @Body() body: WalletOperationDto,
     ): Promise<DriverModel> {
         return this.driversService.topUpWallet(Number(id), body.amount);
     }
@@ -85,7 +90,7 @@ export class DriversController {
     @Post(':id/wallet/deduct')
     async deductWallet(
         @Param('id') id: string,
-        @Body() body: { amount: number },
+        @Body() body: WalletOperationDto,
     ): Promise<DriverModel> {
         return this.driversService.deductWallet(Number(id), body.amount);
     }
@@ -93,7 +98,7 @@ export class DriversController {
     @Post(':id/wallet/freeze')
     async freezeBalance(
         @Param('id') id: string,
-        @Body() body: { amount: number },
+        @Body() body: WalletOperationDto,
     ): Promise<DriverModel> {
         return this.driversService.freezeBalance(Number(id), body.amount);
     }
@@ -101,7 +106,7 @@ export class DriversController {
     @Post(':id/wallet/unfreeze')
     async unfreezeBalance(
         @Param('id') id: string,
-        @Body() body: { amount: number },
+        @Body() body: WalletOperationDto,
     ): Promise<DriverModel> {
         return this.driversService.unfreezeBalance(Number(id), body.amount);
     }
