@@ -15,6 +15,7 @@ import UserList from './pages/users/UserList'
 import PartnerList from './pages/partners/PartnerList'
 import LocationList from './pages/locations/LocationList'
 import EvDriverList from './pages/ev-drivers/EvDriverList'
+import EvDriverDetails from './pages/ev-drivers/EvDriverDetails'
 import TransactionList from './pages/transactions/TransactionList'
 import ScheduleList from './pages/schedules/ScheduleList'
 import DowntimeList from './pages/downtime/DowntimeList'
@@ -53,6 +54,7 @@ function App() {
         <Route path="/partners" element={<PartnerList />} />
         <Route path="/locations" element={<LocationList />} />
         <Route path="/ev-drivers" element={<EvDriverList />} />
+        <Route path="/ev-drivers/:id" element={<EvDriverDetails />} />
         <Route path="/transactions" element={<TransactionList />} />
         <Route path="/schedules" element={<ScheduleList />} />
         <Route path="/downtime" element={<DowntimeList />} />
