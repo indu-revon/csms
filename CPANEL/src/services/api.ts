@@ -76,6 +76,19 @@ export interface User {
   updatedAt: string
 }
 
+export interface Driver {
+  id: number
+  name: string
+  email: string
+  phone?: string
+  virtualRfidTag?: string
+  status: string
+  balance: number
+  holdBalance: number
+  createdAt: string
+  updatedAt: string
+}
+
 export interface AuditLog {
   id: number
   userId?: number
@@ -254,6 +267,75 @@ class OperationsService {
   }
 }
 
+class DriverService {
+  private readonly baseUrl = '/drivers'
+
+  async getAll(params?: {
+    page?: number
+    limit?: number
+    search?: string
+    sortBy?: string
+  }): Promise<{ data: Driver[]; total: number }> {
+    const query = new URLSearchParams()
+    if (params?.page) query.append('page', params.page.toString())
+    if (params?.limit) query.append('limit', params.limit.toString())
+    if (params?.search) query.append('search', params.search)
+    if (params?.sortBy) query.append('sortBy', params.sortBy)
+    const url = query.toString() ? `${this.baseUrl}?${query.toString()}` : this.baseUrl
+    return await apiClient.get<{ data: Driver[]; total: number }>(url)
+  }
+
+  async getById(id: number): Promise<Driver> {
+    return await apiClient.get<Driver>(`${this.baseUrl}/${id}`)
+  }
+
+  async create(data: { name: string; email: string }): Promise<Driver> {
+    return await apiClient.post<Driver>(this.baseUrl, data)
+  }
+
+  async update(id: number, data: { name?: string; email?: string; phone?: string; virtualRfidTag?: string }): Promise<Driver> {
+    return await apiClient.put<Driver>(`${this.baseUrl}/${id}`, data)
+  }
+
+  async blockDriver(id: number): Promise<Driver> {
+    return await apiClient.put<Driver>(`${this.baseUrl}/${id}`, { status: 'Blocked' })
+  }
+
+  async unblockDriver(id: number): Promise<Driver> {
+    return await apiClient.put<Driver>(`${this.baseUrl}/${id}`, { status: 'Active' })
+  }
+
+  async delete(id: number): Promise<void> {
+    await apiClient.delete(`${this.baseUrl}/${id}`)
+  }
+
+  // Wallet Operations
+  async topUpWallet(id: number, amount: number): Promise<Driver> {
+    return await apiClient.post<Driver>(`${this.baseUrl}/${id}/wallet/topup`, { amount })
+  }
+
+  async deductWallet(id: number, amount: number): Promise<Driver> {
+    return await apiClient.post<Driver>(`${this.baseUrl}/${id}/wallet/deduct`, { amount })
+  }
+
+  async freezeBalance(id: number, amount: number): Promise<Driver> {
+    return await apiClient.post<Driver>(`${this.baseUrl}/${id}/wallet/freeze`, { amount })
+  }
+
+  async unfreezeBalance(id: number, amount: number): Promise<Driver> {
+    return await apiClient.post<Driver>(`${this.baseUrl}/${id}/wallet/unfreeze`, { amount })
+  }
+
+  // Transactions and Reservations
+  async getTransactions(id: number): Promise<any[]> {
+    return await apiClient.get<any[]>(`${this.baseUrl}/${id}/transactions`)
+  }
+
+  async getReservations(id: number): Promise<any[]> {
+    return await apiClient.get<any[]>(`${this.baseUrl}/${id}/reservations`)
+  }
+}
+
 export const stationService = new StationService()
 export const sessionService = new SessionService()
 export const rfidService = new RfidService()
@@ -261,3 +343,4 @@ export const reservationService = new ReservationService()
 export const userService = new UserService()
 export const auditLogService = new AuditLogService()
 export const operationsService = new OperationsService()
+export const driverService = new DriverService()
