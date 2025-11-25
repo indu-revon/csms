@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Row, Col, Tag, Descriptions, Table, message, Tabs } from 'antd'
+import { Card, Row, Col, Tag, Descriptions, Table, message, Tabs, Button } from 'antd'
 import { stationService, type Station, auditLogService, type AuditLog } from '@/services/api'
+import RemoteActionsModal from '@/components/RemoteActionsModal'
+import ServerLogTable from '@/components/ServerLogTable'
 
 const { TabPane } = Tabs
 
@@ -18,6 +20,7 @@ export default function StationDetail() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(false)
   const [auditLogsLoading, setAuditLogsLoading] = useState(false)
+  const [remoteModalVisible, setRemoteModalVisible] = useState(false)
 
   const fetchStation = async () => {
     if (!id) return
@@ -122,6 +125,7 @@ export default function StationDetail() {
       title: 'Remote Action Name',
       dataIndex: 'actionType',
       key: 'actionType',
+      render: (text: string) => text.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '),
     },
     {
       title: 'Status',
@@ -160,7 +164,22 @@ export default function StationDetail() {
 
   return (
     <div>
-      <h1>Charging Station Details</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h1>Charging Station Details</h1>
+        <Button type="primary" onClick={() => setRemoteModalVisible(true)}>Remote Actions</Button>
+      </div>
+
+      {station && (
+        <RemoteActionsModal
+          visible={remoteModalVisible}
+          onCancel={() => {
+            setRemoteModalVisible(false)
+            fetchAuditLogs()
+          }}
+          stationId={station.ocppIdentifier}
+          connectors={station.connectors || []}
+        />
+      )}
 
       <Tabs defaultActiveKey="1">
         <TabPane tab="Charging Station Info" key="1">
@@ -186,7 +205,7 @@ export default function StationDetail() {
                   </Descriptions.Item>
                 </Descriptions>
               </Col>
-            </Row>
+            </Row >
 
             <h3>Hardware Information</h3>
             <Row gutter={16}>
@@ -206,7 +225,7 @@ export default function StationDetail() {
                 </Descriptions>
               </Col>
             </Row>
-          </Card>
+          </Card >
 
           <Card title="Connectors">
             <Table
@@ -216,7 +235,7 @@ export default function StationDetail() {
               pagination={false}
             />
           </Card>
-        </TabPane>
+        </TabPane >
 
         <TabPane tab="Remote Actions" key="2">
           <Card title="Remote Actions History">
@@ -256,7 +275,7 @@ export default function StationDetail() {
           <WipTab />
         </TabPane>
         <TabPane tab="Server Logs" key="7">
-          <WipTab />
+          <ServerLogTable stationId={station.ocppIdentifier} />
         </TabPane>
         <TabPane tab="Uptime" key="8">
           <WipTab />
@@ -267,7 +286,7 @@ export default function StationDetail() {
         <TabPane tab="Revenue" key="10">
           <WipTab />
         </TabPane>
-      </Tabs>
+      </Tabs >
     </div >
   )
 }

@@ -31,10 +31,17 @@ model ChargingStation {
   maxCurrentAmp    Float?
   maxVoltageV      Float?
 
+  // OCPP-specific fields from BootNotification
+  iccid            String?   // SIM card identifier
+  imsi             String?   // International Mobile Subscriber Identity
+  meterType        String?   // Energy meter manufacturer/type
+  meterSerialNumber String?  // Energy meter serial number
+
   connectors       Connector[]
   sessions         ChargingSession[]
   reservations     Reservation[]
-  auditLogs        AuditLog[]    @relation("ChargingStationAuditLogs")
+  auditLogs        AuditLog[]         @relation("ChargingStationAuditLogs")
+  ocppMessageLogs  OcppMessageLog[]
   
   // Reference to the model
   stationModel     StationModel? @relation(fields: [modelId], references: [id])
@@ -61,6 +68,9 @@ model Connector {
   status           String?
   lastStatusAt     DateTime?
   maxPowerKw       Float?
+  errorCode        String?   // OCPP error code when status is Faulted
+  errorInfo        String?   // Additional error information
+  vendorErrorCode  String?   // Vendor-specific error code
 
   chargingStation  ChargingStation @relation(fields: [chargingStationId], references: [id])
   sessions         ChargingSession[]
@@ -74,6 +84,7 @@ model RfidCard {
   status      String   // Active/Blocked/Expired
   validFrom   DateTime?
   validUntil  DateTime?
+  parentIdTag String?  // Parent RFID for hierarchical authorization
   userId      Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -91,6 +102,7 @@ model ChargingSession {
   stopMeterValue     Int?
   energyKwh          Float?
   sessionStatus      String?
+  stopReason         String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -145,4 +157,24 @@ model AuditLog {
   
   @@index([chargingStationId])
   @@index([timestamp])
+}
+
+model OcppMessageLog {
+  id                Int      @id @default(autoincrement())
+  chargingStationId Int
+  direction         String   // "INCOMING" or "OUTGOING"
+  logType           String   // "CALL", "CALL_RESULT", "CALL_ERROR"
+  actionType        String?  // e.g., "BootNotification", "Heartbeat", "StartTransaction"
+  messageId         String   // Unique message identifier
+  request           String?  // JSON payload for CALL messages
+  response          String?  // JSON payload for CALL_RESULT/CALL_ERROR
+  timestamp         DateTime @default(now())
+  
+  chargingStation   ChargingStation @relation(fields: [chargingStationId], references: [id])
+  
+  @@index([chargingStationId])
+  @@index([timestamp])
+  @@index([direction])
+  @@index([logType])
+  @@index([actionType])
 }

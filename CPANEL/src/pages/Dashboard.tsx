@@ -27,7 +27,15 @@ export default function Dashboard() {
         sessionService.getAll(),
       ])
       setStations(stationsData)
-      setRecentSessions(sessionsData.slice(0, 10))
+
+      // Handle both array and paginated response formats
+      if (Array.isArray(sessionsData)) {
+        setRecentSessions(sessionsData.slice(0, 10))
+      } else if (sessionsData && 'data' in sessionsData) {
+        setRecentSessions(sessionsData.data.slice(0, 10))
+      } else {
+        setRecentSessions([])
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
     } finally {

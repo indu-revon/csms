@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Table, Button, Modal, Form, Input, Select, message, Tag, Space, InputNumber, Row, Col } from 'antd'
+import { Table, Button, Modal, Form, Input, Select, message, Tag, Space, InputNumber, Row, Col, Badge } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
 import { stationService, type Station } from '@/services/api'
 import { modelService, type Model } from '@/services/modelService'
@@ -40,6 +40,14 @@ export default function StationList() {
   useEffect(() => {
     fetchStations()
     fetchModels()
+
+    // Auto-refresh every 30 seconds
+    const intervalId = setInterval(() => {
+      fetchStations()
+    }, 30000) // 30 seconds
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId)
   }, [])
 
   const handleCreate = () => {
@@ -130,11 +138,21 @@ export default function StationList() {
     },
     {
       title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status?: string) => (
-        <Tag color={getStatusColor(status)}>{status || 'Unknown'}</Tag>
-      ),
+      dataIndex: 'computedStatus',
+      key: 'computedStatus',
+      render: (computedStatus?: string, record?: Station) => {
+        const statusToDisplay = computedStatus || record?.status || 'Unknown'
+        const isConnected = record?.isConnected || false
+
+        return (
+          <Space>
+            {isConnected && (
+              <Badge status="processing" />
+            )}
+            <Tag color={getStatusColor(statusToDisplay)}>{statusToDisplay}</Tag>
+          </Space>
+        )
+      },
     },
     {
       title: 'Last Heartbeat',

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../config/database.config';
 import { ChargePointStatus } from '../../common/enums';
+import { AppConfig } from '../../config/app.config';
+
 
 export interface CreateStationDto {
   ocppIdentifier: string;
@@ -8,6 +10,10 @@ export interface CreateStationDto {
   model?: string;
   firmwareVersion?: string;
   serialNumber?: string;
+  iccid?: string;
+  imsi?: string;
+  meterType?: string;
+  meterSerialNumber?: string;
   // Hardware info
   powerOutputKw?: number;
   maxCurrentAmp?: number;
@@ -142,6 +148,21 @@ export class StationsService {
       },
     });
   }
+
+  /**
+   * Check if a station has sent a heartbeat within the configured timeout threshold
+   * @param lastHeartbeatAt The last heartbeat timestamp
+   * @returns true if the station is considered recently active
+   */
+  isRecentlyActive(lastHeartbeatAt: Date | null | undefined): boolean {
+    if (!lastHeartbeatAt) return false;
+
+    const now = new Date();
+    const timeSinceLastHeartbeat = now.getTime() - lastHeartbeatAt.getTime();
+
+    return timeSinceLastHeartbeat <= AppConfig.HEARTBEAT_TIMEOUT_MS;
+  }
+
 
   async deleteStation(ocppIdentifier: string) {
     // First, find the station to get its ID

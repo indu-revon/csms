@@ -13,12 +13,13 @@ export interface CreateSessionDto {
 export interface StopSessionDto {
   stopTimestamp: Date;
   stopMeterValue?: number;
+  stopReason?: string;
   energyKwh?: number;
 }
 
 @Injectable()
 export class SessionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async createSession(data: CreateSessionDto) {
     return this.prisma.chargingSession.create({
@@ -89,6 +90,106 @@ export class SessionsService {
       orderBy: {
         startTimestamp: 'desc',
       },
+    });
+  }
+
+  async findActiveSessions(filters?: {
+    search?: string;
+    stationId?: number;
+    connectorId?: number;
+    idTag?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 100;
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {
+      sessionStatus: 'ACTIVE',
+    };
+
+    if (filters?.stationId) {
+      where.chargingStationId = filters.stationId;
+    }
+
+    if (filters?.connectorId) {
+      where.connectorId = filters.connectorId;
+    }
+
+    if (filters?.idTag) {
+      where.ocppIdTag = {
+        contains: filters.idTag,
+        mode: 'insensitive',
+      };
+    }
+
+    // Search across multiple fields
+    if (filters?.search) {
+      where.OR = [
+        {
+          ocppIdTag: {
+            contains: filters.search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          chargingStation: {
+            ocppIdentifier: {
+              contains: filters.search,
+              mode: 'insensitive',
+            },
+          },
+        },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.chargingSession.findMany({
+        where,
+        include: {
+          chargingStation: true,
+          connector: true,
+          meterValues: {
+            orderBy: {
+              timestamp: 'desc',
+            },
+            take: 10, // Latest 10 meter values
+          },
+        },
+        orderBy: {
+          startTimestamp: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.chargingSession.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
+  async findActiveSessionsByStation(stationId: number) {
+    return this.prisma.chargingSession.findMany({
+      where: {
+        chargingStationId: stationId,
+        sessionStatus: 'ACTIVE',
+      },
+      include: {
+        chargingStation: true,
+        connector: true,
+      },
+      orderBy: {
+        startTimestamp: 'desc',
+      },
+    });
+  }
+
+  async updateTransactionId(sessionId: number, transactionId: number) {
+    return this.prisma.chargingSession.update({
+      where: { id: sessionId },
+      data: { ocppTransactionId: transactionId },
     });
   }
 }

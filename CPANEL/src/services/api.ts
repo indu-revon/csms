@@ -17,7 +17,11 @@ export interface Station {
   maxCurrentAmp?: number
   maxVoltageV?: number
   modelId?: number
+  // Real-time connection info
+  isConnected?: boolean
+  computedStatus?: string
 }
+
 
 export interface Connector {
   id: number
@@ -89,6 +93,22 @@ export interface AuditLog {
   response?: string
 }
 
+export interface OcppMessageLog {
+  id: number
+  chargingStationId: number
+  chargingStation?: {
+    id: number
+    ocppIdentifier: string
+  }
+  direction: 'INCOMING' | 'OUTGOING'
+  logType: 'CALL' | 'CALL_RESULT' | 'CALL_ERROR'
+  actionType?: string
+  messageId: string
+  request?: string
+  response?: string
+  timestamp: string
+}
+
 class StationService {
   private readonly baseUrl = '/stations'
 
@@ -116,13 +136,39 @@ class StationService {
 class SessionService {
   private readonly baseUrl = '/sessions'
 
-  async getAll(limit?: number): Promise<Session[]> {
-    const url = limit ? `${this.baseUrl}?limit=${limit}` : this.baseUrl
-    return await apiClient.get<Session[]>(url)
+  async getAll(params?: {
+    search?: string;
+    stationId?: string | number;
+    connectorId?: string | number;
+    idTag?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ data: Session[]; total: number; page: number; limit: number } | Session[]> {
+    if (!params || Object.keys(params).length === 0) {
+      // Backward compatibility: if no params, return as before
+      return await apiClient.get<Session[]>(this.baseUrl)
+    }
+
+    const urlParams = new URLSearchParams()
+    if (params.search) urlParams.append('search', params.search)
+    if (params.stationId) urlParams.append('stationId', params.stationId.toString())
+    if (params.connectorId) urlParams.append('connectorId', params.connectorId.toString())
+    if (params.idTag) urlParams.append('idTag', params.idTag)
+    if (params.page) urlParams.append('page', params.page.toString())
+    if (params.limit) urlParams.append('limit', params.limit.toString())
+
+    const queryString = urlParams.toString()
+    const url = queryString ? `${this.baseUrl}?${queryString}` : this.baseUrl
+
+    return await apiClient.get<{ data: Session[]; total: number; page: number; limit: number }>(url)
   }
 
   async getByStation(cpId: string): Promise<Session[]> {
     return await apiClient.get<Session[]>(`${this.baseUrl}/station/${cpId}`)
+  }
+
+  async getActiveByStation(cpId: string): Promise<Session[]> {
+    return await apiClient.get<Session[]>(`${this.baseUrl}/station/${cpId}/active`)
   }
 
   async getById(id: number): Promise<Session> {
@@ -230,6 +276,64 @@ class AuditLogService {
   }
 }
 
+interface OcppLogFilters {
+  search?: string
+  stationId?: number
+  direction?: 'INCOMING' | 'OUTGOING'
+  logType?: 'CALL' | 'CALL_RESULT' | 'CALL_ERROR'
+  actionType?: string
+  page?: number
+  limit?: number
+}
+
+interface OcppLogResponse {
+  data: OcppMessageLog[]
+  total: number
+  page: number
+  limit: number
+}
+
+class OcppLogService {
+  private readonly baseUrl = '/ocpp-logs'
+
+  async getAll(filters?: OcppLogFilters): Promise<OcppLogResponse> {
+    const params = new URLSearchParams()
+
+    if (filters?.search) params.append('search', filters.search)
+    if (filters?.stationId) params.append('stationId', filters.stationId.toString())
+    if (filters?.direction) params.append('direction', filters.direction)
+    if (filters?.logType) params.append('logType', filters.logType)
+    if (filters?.actionType) params.append('actionType', filters.actionType)
+    if (filters?.page) params.append('page', filters.page.toString())
+    if (filters?.limit) params.append('limit', filters.limit.toString())
+
+    const queryString = params.toString()
+    const url = queryString ? `${this.baseUrl}?${queryString}` : this.baseUrl
+
+    return await apiClient.get<OcppLogResponse>(url)
+  }
+
+  async getByStation(cpId: string, filters?: Omit<OcppLogFilters, 'stationId'>): Promise<OcppLogResponse> {
+    const params = new URLSearchParams()
+
+    if (filters?.search) params.append('search', filters.search)
+    if (filters?.direction) params.append('direction', filters.direction)
+    if (filters?.logType) params.append('logType', filters.logType)
+    if (filters?.actionType) params.append('actionType', filters.actionType)
+    if (filters?.page) params.append('page', filters.page.toString())
+    if (filters?.limit) params.append('limit', filters.limit.toString())
+
+    const queryString = params.toString()
+    const url = queryString ? `${this.baseUrl}/station/${cpId}?${queryString}` : `${this.baseUrl}/station/${cpId}`
+
+    return await apiClient.get<OcppLogResponse>(url)
+  }
+
+  async getById(id: number): Promise<OcppMessageLog> {
+    return await apiClient.get<OcppMessageLog>(`${this.baseUrl}/${id}`)
+  }
+}
+
 class OperationsService {
   private readonly baseUrl = '/admin'
 
@@ -252,6 +356,26 @@ class OperationsService {
   async unlockConnector(cpId: string, data: { connectorId: number }) {
     return await apiClient.post(`${this.baseUrl}/${cpId}/unlock-connector`, data)
   }
+
+  async clearCache(cpId: string) {
+    return await apiClient.post(`${this.baseUrl}/${cpId}/clear-cache`)
+  }
+
+  async triggerMessage(cpId: string, data: { requestedMessage: string; connectorId?: number }) {
+    return await apiClient.post(`${this.baseUrl}/${cpId}/trigger-message`, data)
+  }
+
+  async dataTransfer(cpId: string, data: { vendorId: string; messageId?: string; data?: string }) {
+    return await apiClient.post(`${this.baseUrl}/${cpId}/data-transfer`, data)
+  }
+
+  async reserveNow(cpId: string, data: { connectorId: number; expiryDate: Date; idTag: string; reservationId: number; parentIdTag?: string }) {
+    return await apiClient.post(`${this.baseUrl}/${cpId}/reserve-now`, data)
+  }
+
+  async cancelReservation(cpId: string, data: { reservationId: number }) {
+    return await apiClient.post(`${this.baseUrl}/${cpId}/cancel-reservation`, data)
+  }
 }
 
 export const stationService = new StationService()
@@ -260,4 +384,5 @@ export const rfidService = new RfidService()
 export const reservationService = new ReservationService()
 export const userService = new UserService()
 export const auditLogService = new AuditLogService()
+export const ocppLogService = new OcppLogService()
 export const operationsService = new OperationsService()

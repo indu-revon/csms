@@ -10,7 +10,7 @@ export interface UpdateConnectorStatusDto {
 
 @Injectable()
 export class ConnectorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async upsertConnector(stationId: number, connectorId: number, maxPowerKw?: number) {
     return this.prisma.connector.upsert({
@@ -62,6 +62,30 @@ export class ConnectorsService {
           chargingStationId: stationId,
           connectorId,
         },
+      },
+    });
+  }
+
+  async updateErrorInfo(
+    stationId: number,
+    connectorId: number,
+    errorInfo: {
+      errorCode: string;
+      errorInfo?: string;
+      vendorErrorCode?: string;
+    }
+  ) {
+    return this.prisma.connector.update({
+      where: {
+        chargingStationId_connectorId: {
+          chargingStationId: stationId,
+          connectorId,
+        },
+      },
+      data: {
+        errorCode: errorInfo.errorCode,
+        errorInfo: errorInfo.errorInfo,
+        vendorErrorCode: errorInfo.vendorErrorCode,
       },
     });
   }

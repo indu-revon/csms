@@ -1,0 +1,61 @@
+{
+    "name": "revon-csms",
+    "version": "3.0.0",
+    "description": "REVON Charging Station Management System - OCPP 1.6J Implementation",
+    "private": true,
+    "workspaces": [
+        "OCPP_GATEWAY",
+        "CPANEL"
+    ],
+    "scripts": {
+        "preinstall": "echo 'Installing dependencies for all workspaces...'",
+        "postinstall": "npm run prisma:generate",
+        "prisma:generate": "cd OCPP_GATEWAY && npx prisma generate",
+        "clean": "npm run clean:ports",
+        "clean:ports": "npx kill-port 3000 3003 3004 3005 3006 3007 || echo 'Ports cleaned'",
+        "dev": "npm run clean:ports && concurrently -n \"GATEWAY,CPANEL\" -c \"cyan,magenta\" \"npm run dev:gateway\" \"npm run dev:cpanel\"",
+        "dev:gateway": "cd OCPP_GATEWAY && npm run start:dev",
+        "dev:cpanel": "npm run wait:gateway && cd CPANEL && cross-env PORT=3003 npm run dev",
+        "wait:gateway": "wait-on http://localhost:3000/health -t 15000",
+        "start": "npm run clean:ports && concurrently -n \"GATEWAY,CPANEL\" -c \"cyan,magenta\" \"npm run start:gateway\" \"npm run start:cpanel\"",
+        "start:gateway": "cd OCPP_GATEWAY && npm run start",
+        "start:cpanel": "npm run wait:gateway && cd CPANEL && cross-env PORT=3003 npm run dev",
+        "build": "npm run build:gateway && npm run build:cpanel",
+        "build:gateway": "cd OCPP_GATEWAY && npm run build",
+        "build:cpanel": "cd CPANEL && npm run build",
+        "prod": "npm run clean:ports && concurrently -n \"GATEWAY,CPANEL-PREVIEW\" -c \"cyan,magenta\" \"npm run prod:gateway\" \"npm run prod:cpanel\"",
+        "prod:gateway": "cd OCPP_GATEWAY && npm run start:prod",
+        "prod:cpanel": "npm run wait:gateway && cd CPANEL && cross-env PORT=3003 npm run preview",
+        "migrate": "cd OCPP_GATEWAY && npx prisma migrate dev",
+        "migrate:deploy": "cd OCPP_GATEWAY && npx prisma migrate deploy",
+        "studio": "cd OCPP_GATEWAY && npx prisma studio",
+        "pm2:start": "pm2 start ecosystem.config.js",
+        "pm2:stop": "pm2 stop ecosystem.config.js",
+        "pm2:restart": "pm2 restart ecosystem.config.js",
+        "pm2:logs": "pm2 logs",
+        "pm2:monit": "pm2 monit"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "cross-env": "^7.0.3",
+        "kill-port": "^2.0.1",
+        "wait-on": "^7.2.0"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=9.0.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/RevonTech/REVON_CMSV3"
+    },
+    "keywords": [
+        "OCPP",
+        "EV Charging",
+        "Charging Station Management",
+        "OCPP 1.6J",
+        "WebSocket"
+    ],
+    "author": "RevonTech",
+    "license": "UNLICENSED"
+}

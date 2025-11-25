@@ -18,7 +18,7 @@ export interface ChangeAvailabilityDto {
 
 @Injectable()
 export class RemoteControlService {
-  constructor(private readonly ocppService: OcppService) {}
+  constructor(private readonly ocppService: OcppService) { }
 
   async remoteStartTransaction(cpId: string, data: RemoteStartTransactionDto) {
     return this.ocppService.sendCommand(cpId, 'RemoteStartTransaction', data);
@@ -46,5 +46,38 @@ export class RemoteControlService {
 
   async changeConfiguration(cpId: string, key: string, value: string) {
     return this.ocppService.sendCommand(cpId, 'ChangeConfiguration', { key, value });
+  }
+
+  async reserveNow(cpId: string, data: {
+    connectorId: number;
+    expiryDate: Date;
+    idTag: string;
+    reservationId: number;
+    parentIdTag?: string;
+  }) {
+    return this.ocppService.sendCommand(cpId, 'ReserveNow', data);
+  }
+
+  async cancelReservation(cpId: string, reservationId: number) {
+    return this.ocppService.sendCommand(cpId, 'CancelReservation', { reservationId });
+  }
+
+  async clearCache(cpId: string) {
+    return this.ocppService.sendCommand(cpId, 'ClearCache', {});
+  }
+
+  async triggerMessage(cpId: string, requestedMessage: string, connectorId?: number) {
+    return this.ocppService.sendCommand(cpId, 'TriggerMessage', {
+      requestedMessage,
+      connectorId,
+    });
+  }
+
+  async dataTransfer(cpId: string, vendorId: string, messageId?: string, data?: string) {
+    return this.ocppService.sendCommand(cpId, 'DataTransfer', {
+      vendorId,
+      messageId,
+      data,
+    });
   }
 }

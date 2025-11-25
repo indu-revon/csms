@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { StationsService } from '../../charging/stations/stations.service';
 import { OcppService } from '../../ocpp/ocpp.service';
 import { CreateStationDto, UpdateStationDto } from '../../charging/stations/stations.service';
+import { ChargePointStatus } from '../../common/enums';
 
 // Helper function to convert BigInt to string in JSON
 function replacer(key: string, value: any) {
@@ -12,21 +13,59 @@ function replacer(key: string, value: any) {
   return value;
 }
 
+/**
+ * Compute the real-time status of a charging station
+ * @param dbStatus Database status
+ * @param isConnected Whether the station is actively connected via WebSocket
+ * @param isRecentlyActive Whether the station has sent heartbeat recently
+ * @returns Computed status
+ */
+function computeStationStatus(
+  dbStatus: string | null | undefined,
+  isConnected: boolean,
+  isRecentlyActive: boolean
+): string {
+  // Preserve MAINTENANCE and ERROR states from database
+  if (dbStatus === ChargePointStatus.MAINTENANCE || dbStatus === ChargePointStatus.ERROR) {
+    return dbStatus;
+  }
+
+  // If actively connected via WebSocket, it's ONLINE
+  if (isConnected) {
+    return ChargePointStatus.ONLINE;
+  }
+
+  // If not connected but recently active (within heartbeat threshold), still ONLINE
+  if (isRecentlyActive) {
+    return ChargePointStatus.ONLINE;
+  }
+
+  // Otherwise, it's OFFLINE
+  return ChargePointStatus.OFFLINE;
+}
+
 @Controller('api/stations')
 export class StationsController {
   constructor(
     private readonly stationsService: StationsService,
     private readonly ocppService: OcppService,
-  ) {}
+  ) { }
 
   @Get()
   async findAll(@Res() res: Response) {
     try {
       const stations = await this.stationsService.findAll();
-      const result = stations.map(station => ({
-        ...station,
-        isConnected: this.ocppService.isStationConnected(station.ocppIdentifier),
-      }));
+      const result = stations.map(station => {
+        const isConnected = this.ocppService.isStationConnected(station.ocppIdentifier);
+        const isRecentlyActive = this.stationsService.isRecentlyActive(station.lastHeartbeatAt);
+        const computedStatus = computeStationStatus(station.status, isConnected, isRecentlyActive);
+
+        return {
+          ...station,
+          isConnected,
+          computedStatus,
+        };
+      });
       // Convert BigInt values to strings for JSON serialization
       const serializedResult = JSON.parse(JSON.stringify(result, replacer));
       return res.json(serializedResult);
@@ -40,9 +79,14 @@ export class StationsController {
   async findOne(@Param('cpId') cpId: string, @Res() res: Response) {
     try {
       const station = await this.stationsService.findByOcppIdentifier(cpId);
+      const isConnected = this.ocppService.isStationConnected(cpId);
+      const isRecentlyActive = this.stationsService.isRecentlyActive(station?.lastHeartbeatAt);
+      const computedStatus = computeStationStatus(station?.status, isConnected, isRecentlyActive);
+
       const result = {
         ...station,
-        isConnected: this.ocppService.isStationConnected(cpId),
+        isConnected,
+        computedStatus,
       };
       // Convert BigInt values to strings for JSON serialization
       const serializedResult = JSON.parse(JSON.stringify(result, replacer));
@@ -87,7 +131,7 @@ export class StationsController {
       if (!existingStation) {
         return res.status(404).json({ error: 'Station not found' });
       }
-      
+
       const station = await this.stationsService.updateStation(cpId, updateStationDto);
       // Convert BigInt values to strings for JSON serialization
       const serializedResult = JSON.parse(JSON.stringify(station, replacer));
@@ -110,12 +154,12 @@ export class StationsController {
       if (!existingStation) {
         return res.status(404).json({ error: 'Station not found' });
       }
-      
+
       // Check if the station is currently connected
       if (this.ocppService.isStationConnected(cpId)) {
         return res.status(400).json({ error: 'Cannot delete connected station' });
       }
-      
+
       // Delete the station
       await this.stationsService.deleteStation(cpId);
       return res.status(204).send();

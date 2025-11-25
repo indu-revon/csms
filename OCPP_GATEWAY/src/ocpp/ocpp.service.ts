@@ -4,6 +4,7 @@ import { createLogger } from '../config/logger.config';
 import { OcppMessage } from '../common/types';
 import { OcppMessageType } from '../common/enums';
 import { StationsService } from '../charging/stations/stations.service';
+import { OcppLogsService } from '../api/ocpp-logs.service';
 import { BootNotificationHandler } from './handlers/boot-notification.handler';
 import { HeartbeatHandler } from './handlers/heartbeat.handler';
 import { StatusNotificationHandler } from './handlers/status-notification.handler';
@@ -11,8 +12,7 @@ import { AuthorizeHandler } from './handlers/authorize.handler';
 import { StartTransactionHandler } from './handlers/start-transaction.handler';
 import { StopTransactionHandler } from './handlers/stop-transaction.handler';
 import { MeterValuesHandler } from './handlers/meter-values.handler';
-import { ReserveNowHandler } from './handlers/reserve-now.handler';
-import { CancelReservationHandler } from './handlers/cancel-reservation.handler';
+import { DataTransferHandler } from './handlers/data-transfer.handler';
 
 interface ConnectionInfo {
   cpId: string;
@@ -28,6 +28,7 @@ export class OcppService {
 
   constructor(
     private readonly stationsService: StationsService,
+    private readonly ocppLogsService: OcppLogsService,
     private readonly bootNotificationHandler: BootNotificationHandler,
     private readonly heartbeatHandler: HeartbeatHandler,
     private readonly statusNotificationHandler: StatusNotificationHandler,
@@ -35,13 +36,12 @@ export class OcppService {
     private readonly startTransactionHandler: StartTransactionHandler,
     private readonly stopTransactionHandler: StopTransactionHandler,
     private readonly meterValuesHandler: MeterValuesHandler,
-    private readonly reserveNowHandler: ReserveNowHandler,
-    private readonly cancelReservationHandler: CancelReservationHandler,
-  ) {}
+    private readonly dataTransferHandler: DataTransferHandler,
+  ) { }
 
   async registerConnection(cpId: string, client: WebSocket) {
     this.logger.info(`Charge point connected: ${cpId}`);
-    
+
     this.cpConnections.set(cpId, {
       cpId,
       socket: client,
@@ -61,7 +61,7 @@ export class OcppService {
 
   async handleDisconnect(client: WebSocket) {
     const cpId = this.socketToCpId.get(client);
-    
+
     if (cpId) {
       this.logger.info(`Charge point disconnected: ${cpId}`);
       this.cpConnections.delete(cpId);
@@ -76,9 +76,46 @@ export class OcppService {
     }
   }
 
+  /**
+   * Log OCPP message to database (async, non-blocking)
+   */
+  private async logMessage(
+    cpId: string,
+    direction: 'INCOMING' | 'OUTGOING',
+    messageType: OcppMessageType,
+    messageId: string,
+    action?: string,
+    payload?: any,
+  ) {
+    try {
+      const station = await this.stationsService.findByOcppIdentifier(cpId);
+      if (!station) {
+        this.logger.warn(`Cannot log message: Station ${cpId} not found in database`);
+        return;
+      }
+
+      const logType =
+        messageType === OcppMessageType.CALL ? 'CALL' :
+          messageType === OcppMessageType.CALL_RESULT ? 'CALL_RESULT' : 'CALL_ERROR';
+
+      await this.ocppLogsService.logMessage({
+        chargingStationId: station.id,
+        direction,
+        logType,
+        actionType: action,
+        messageId,
+        request: messageType === OcppMessageType.CALL && payload ? JSON.stringify(payload) : undefined,
+        response: messageType !== OcppMessageType.CALL && payload ? JSON.stringify(payload) : undefined,
+      });
+    } catch (error) {
+      // Don't let logging failures affect message processing
+      this.logger.error(`Failed to log message to database: ${error.message}`);
+    }
+  }
+
   async handleIncomingMessage(client: WebSocket, raw: string) {
     const cpId = this.socketToCpId.get(client);
-    
+
     if (!cpId) {
       this.logger.warn('Received message from unregistered client');
       return;
@@ -97,13 +134,19 @@ export class OcppService {
 
     switch (messageTypeId) {
       case OcppMessageType.CALL:
+        // Log incoming CALL message
+        this.logMessage(cpId, 'INCOMING', messageTypeId, uniqueId, actionOrPayload as string, payloadIfCall);
         await this.handleCall(client, cpId, uniqueId, actionOrPayload as string, payloadIfCall);
         break;
       case OcppMessageType.CALL_RESULT:
         this.logger.info(`[${cpId}] Received CALLRESULT for ${uniqueId}`);
+        // Log incoming CALL_RESULT
+        this.logMessage(cpId, 'INCOMING', messageTypeId, uniqueId, undefined, actionOrPayload);
         break;
       case OcppMessageType.CALL_ERROR:
         this.logger.error(`[${cpId}] Received CALLERROR for ${uniqueId}: ${actionOrPayload}`);
+        // Log incoming CALL_ERROR
+        this.logMessage(cpId, 'INCOMING', messageTypeId, uniqueId, undefined, { errorCode: actionOrPayload, errorDescription: payloadIfCall });
         break;
       default:
         this.logger.warn(`Unknown message type: ${messageTypeId}`);
@@ -142,11 +185,8 @@ export class OcppService {
         case 'MeterValues':
           responsePayload = await this.meterValuesHandler.handle(cpId, payload);
           break;
-        case 'ReserveNow':
-          responsePayload = await this.reserveNowHandler.handle(cpId, payload);
-          break;
-        case 'CancelReservation':
-          responsePayload = await this.cancelReservationHandler.handle(cpId, payload);
+        case 'DataTransfer':
+          responsePayload = await this.dataTransferHandler.handle(cpId, payload);
           break;
         default:
           this.logger.warn(`Unknown action: ${action}`);
@@ -165,10 +205,13 @@ export class OcppService {
     const response: OcppMessage = [OcppMessageType.CALL_RESULT, uniqueId, payload];
     const message = JSON.stringify(response);
     this.logger.info(`[${cpId}] Sending: ${message}`);
+    // Log outgoing CALL_RESULT
+    this.logMessage(cpId, 'OUTGOING', OcppMessageType.CALL_RESULT, uniqueId, undefined, payload);
     client.send(message);
   }
 
   private sendCallError(client: WebSocket, uniqueId: string, errorCode: string, errorDescription: string) {
+    const cpId = this.socketToCpId.get(client);
     const response = [
       OcppMessageType.CALL_ERROR,
       uniqueId,
@@ -176,13 +219,17 @@ export class OcppService {
       errorDescription,
       {},
     ];
+    // Log outgoing CALL_ERROR
+    if (cpId) {
+      this.logMessage(cpId, 'OUTGOING', OcppMessageType.CALL_ERROR, uniqueId, undefined, { errorCode, errorDescription });
+    }
     client.send(JSON.stringify(response));
   }
 
   // Method to send commands from central system to charge point
   async sendCommand(cpId: string, action: string, payload: any): Promise<any> {
     const connection = this.cpConnections.get(cpId);
-    
+
     if (!connection) {
       throw new Error(`Charge point ${cpId} not connected`);
     }
@@ -211,6 +258,8 @@ export class OcppService {
         }
       });
 
+      // Log outgoing CALL before sending
+      this.logMessage(cpId, 'OUTGOING', OcppMessageType.CALL, uniqueId, action, payload);
       connection.socket.send(JSON.stringify(message));
       this.logger.info(`[${cpId}] Sent command: ${action}`);
     });
