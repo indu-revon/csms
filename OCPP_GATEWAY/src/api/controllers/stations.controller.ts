@@ -35,7 +35,13 @@ function computeStationStatus(
     return ChargePointStatus.ONLINE;
   }
 
+  // If explicitly marked OFFLINE in DB (due to clean disconnect), respect it immediately
+  if (dbStatus === ChargePointStatus.OFFLINE) {
+    return ChargePointStatus.OFFLINE;
+  }
+
   // If not connected but recently active (within heartbeat threshold), still ONLINE
+  // This covers "silent" drops where the server hasn't realized the connection is gone yet
   if (isRecentlyActive) {
     return ChargePointStatus.ONLINE;
   }

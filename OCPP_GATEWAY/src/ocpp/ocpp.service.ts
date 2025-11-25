@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { WebSocket } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../config/logger.config';
 import { OcppMessage } from '../common/types';
 import { OcppMessageType } from '../common/enums';
@@ -20,11 +21,22 @@ interface ConnectionInfo {
   connectedAt: Date;
 }
 
+interface PendingCommand {
+  resolve: (value: any) => void;
+  reject: (reason?: any) => void;
+  timeout: NodeJS.Timeout;
+  action: string;
+  timestamp: Date;
+}
+
 @Injectable()
 export class OcppService {
   private readonly logger = createLogger('OcppService');
   private cpConnections = new Map<string, ConnectionInfo>();
   private socketToCpId = new Map<WebSocket, string>();
+
+  // Map to store pending commands: uniqueId -> PendingCommand
+  private pendingCommands = new Map<string, PendingCommand>();
 
   constructor(
     private readonly stationsService: StationsService,
@@ -57,6 +69,10 @@ export class OcppService {
     client.on('error', (error) => {
       this.logger.error(`WebSocket error for ${cpId}: ${error.message}`);
     });
+
+    client.on('close', () => {
+      this.handleDisconnect(client);
+    });
   }
 
   async handleDisconnect(client: WebSocket) {
@@ -73,6 +89,9 @@ export class OcppService {
       } catch (error) {
         this.logger.error(`Error marking station offline: ${error.message}`);
       }
+
+      // Reject any pending commands for this station? 
+      // Ideally yes, but for now let them timeout to avoid complexity with map iteration
     }
   }
 
@@ -138,16 +157,25 @@ export class OcppService {
         this.logMessage(cpId, 'INCOMING', messageTypeId, uniqueId, actionOrPayload as string, payloadIfCall);
         await this.handleCall(client, cpId, uniqueId, actionOrPayload as string, payloadIfCall);
         break;
+
       case OcppMessageType.CALL_RESULT:
         this.logger.info(`[${cpId}] Received CALLRESULT for ${uniqueId}`);
         // Log incoming CALL_RESULT
         this.logMessage(cpId, 'INCOMING', messageTypeId, uniqueId, undefined, actionOrPayload);
+
+        // Handle response to our command
+        this.handleCallResult(uniqueId, actionOrPayload);
         break;
+
       case OcppMessageType.CALL_ERROR:
         this.logger.error(`[${cpId}] Received CALLERROR for ${uniqueId}: ${actionOrPayload}`);
         // Log incoming CALL_ERROR
         this.logMessage(cpId, 'INCOMING', messageTypeId, uniqueId, undefined, { errorCode: actionOrPayload, errorDescription: payloadIfCall });
+
+        // Handle error response to our command
+        this.handleCallError(uniqueId, actionOrPayload as string, payloadIfCall as string);
         break;
+
       default:
         this.logger.warn(`Unknown message type: ${messageTypeId}`);
     }
@@ -226,6 +254,36 @@ export class OcppService {
     client.send(JSON.stringify(response));
   }
 
+  /**
+   * Handle a CALL_RESULT (success response) from a Charge Point
+   */
+  private handleCallResult(uniqueId: string, payload: any) {
+    const pending = this.pendingCommands.get(uniqueId);
+
+    if (pending) {
+      clearTimeout(pending.timeout);
+      this.pendingCommands.delete(uniqueId);
+      pending.resolve(payload);
+    } else {
+      this.logger.warn(`Received CALL_RESULT for unknown or timed-out command: ${uniqueId}`);
+    }
+  }
+
+  /**
+   * Handle a CALL_ERROR (failure response) from a Charge Point
+   */
+  private handleCallError(uniqueId: string, errorCode: string, errorDescription: string) {
+    const pending = this.pendingCommands.get(uniqueId);
+
+    if (pending) {
+      clearTimeout(pending.timeout);
+      this.pendingCommands.delete(uniqueId);
+      pending.reject(new Error(`OCPP Error: ${errorCode} - ${errorDescription}`));
+    } else {
+      this.logger.warn(`Received CALL_ERROR for unknown or timed-out command: ${uniqueId}`);
+    }
+  }
+
   // Method to send commands from central system to charge point
   async sendCommand(cpId: string, action: string, payload: any): Promise<any> {
     const connection = this.cpConnections.get(cpId);
@@ -234,34 +292,40 @@ export class OcppService {
       throw new Error(`Charge point ${cpId} not connected`);
     }
 
-    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    // Use UUID for robust unique IDs
+    const uniqueId = uuidv4();
     const message: OcppMessage = [OcppMessageType.CALL, uniqueId, action, payload];
 
     return new Promise((resolve, reject) => {
+      // Set timeout
       const timeout = setTimeout(() => {
-        reject(new Error('Command timeout'));
+        if (this.pendingCommands.has(uniqueId)) {
+          this.pendingCommands.delete(uniqueId);
+          reject(new Error('Command timeout'));
+        }
       }, 30000); // 30 second timeout
 
-      // Store promise handlers for when response comes back
-      // In production, you'd want a more sophisticated response handler
-      connection.socket.once('message', (raw: Buffer) => {
-        clearTimeout(timeout);
-        try {
-          const response: OcppMessage = JSON.parse(raw.toString());
-          if (response[0] === OcppMessageType.CALL_RESULT && response[1] === uniqueId) {
-            resolve(response[2]);
-          } else if (response[0] === OcppMessageType.CALL_ERROR && response[1] === uniqueId) {
-            reject(new Error(response[3] as string));
-          }
-        } catch (error) {
-          reject(error);
-        }
+      // Store in pending map
+      this.pendingCommands.set(uniqueId, {
+        resolve,
+        reject,
+        timeout,
+        action,
+        timestamp: new Date()
       });
 
       // Log outgoing CALL before sending
       this.logMessage(cpId, 'OUTGOING', OcppMessageType.CALL, uniqueId, action, payload);
-      connection.socket.send(JSON.stringify(message));
-      this.logger.info(`[${cpId}] Sent command: ${action}`);
+
+      try {
+        connection.socket.send(JSON.stringify(message));
+        this.logger.info(`[${cpId}] Sent command: ${action} (ID: ${uniqueId})`);
+      } catch (error) {
+        // If sending fails, clean up the pending command immediately
+        clearTimeout(timeout);
+        this.pendingCommands.delete(uniqueId);
+        reject(error);
+      }
     });
   }
 

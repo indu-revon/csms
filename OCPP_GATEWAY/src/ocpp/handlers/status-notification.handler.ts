@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { StationsService } from '../../charging/stations/stations.service';
 import { ConnectorsService } from '../../charging/connectors/connectors.service';
+import { SessionsService } from '../../charging/sessions/sessions.service';
 import { StatusNotificationRequest, StatusNotificationResponse } from '../dtos/status-notification.dto';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class StatusNotificationHandler {
   constructor(
     private readonly stationsService: StationsService,
     private readonly connectorsService: ConnectorsService,
+    private readonly sessionsService: SessionsService,
   ) { }
 
   async handle(cpId: string, payload: StatusNotificationRequest): Promise<StatusNotificationResponse> {
@@ -51,6 +53,13 @@ export class StatusNotificationHandler {
         payload.status,
       );
 
+      // Check for Zombie Sessions
+      // If status implies no active transaction (Available, Faulted, Unavailable), ensure no session is active
+      const nonActiveStatuses = ['Available', 'Faulted', 'Unavailable', 'Preparing'];
+      if (nonActiveStatuses.includes(payload.status)) {
+        await this.checkAndCloseZombieSession(station.id, payload.connectorId, cpId, payload.status);
+      }
+
       // If connector is Faulted, store error information
       if (payload.status === 'Faulted' && payload.errorCode && payload.errorCode !== 'NoError') {
         await this.connectorsService.updateErrorInfo(
@@ -81,6 +90,32 @@ export class StatusNotificationHandler {
     } catch (error) {
       this.logger.error(`[${cpId}] StatusNotification error: ${error.message}`, error.stack);
       return {}; // Return empty response - StatusNotification doesn't return errors
+    }
+  }
+
+  /**
+   * Check for and close any "Zombie" sessions on a connector that claims to be free
+   */
+  private async checkAndCloseZombieSession(stationId: number, connectorId: number, cpId: string, status: string) {
+    try {
+      const activeSessions = await this.sessionsService.findActiveSessionsByStation(stationId);
+      const zombieSession = activeSessions.find(s => s.connectorId === connectorId);
+
+      if (zombieSession) {
+        this.logger.warn(`[${cpId}] ZOMBIE SESSION DETECTED: Connector ${connectorId} reported ${status} but has active session ${zombieSession.id}. Auto-closing.`);
+
+        await this.sessionsService.stopSession(
+          stationId,
+          Number(zombieSession.ocppTransactionId),
+          {
+            stopTimestamp: new Date(),
+            stopReason: 'LocalStatusCheck', // Indicates closed due to status mismatch
+            stopMeterValue: 0 // Unknown
+          }
+        );
+      }
+    } catch (error) {
+      this.logger.error(`[${cpId}] Error checking zombie sessions: ${error.message}`);
     }
   }
 
